@@ -1,0 +1,16 @@
+services:
+    steve-backoffice:
+        image: steve-backoffice:latest
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        environment:
+            NODE_ENV: production
+        ports:
+            - '3001:3000'
+        restart: unless-stopped
+        networks:
+            - steve-app_steve_network
+networks:
+    steve-app_steve_network:
+        external: true
