@@ -125,7 +125,7 @@ const MenuBar = ({ editor }: { editor: Editor | null }) => {
         },
         {
             icon: <HighLightIcon />,
-            onClick: () => editor.chain().focus().toggleHighlight().run(),
+            onClick: () => editor.chain().focus().toggleStrike().run(),
             pressed: editor.isActive('highlight')
         },
         {

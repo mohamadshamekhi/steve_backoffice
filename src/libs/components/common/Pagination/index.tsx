@@ -69,16 +69,15 @@ const Pagination = ({
 
   return (
     <div dir="ltr" className="mt-4 flex items-center justify-center gap-2">
-      {currentPage !== 1 && (
-        <Button
-          size="sm"
-         startIcon={<ChevronLeftIcon />}
-          variant="outline"
-          onClick={() => goToPage(currentPage - 1)}
-        >
-          قبلی
-        </Button>
-      )}
+      <Button
+        disabled={currentPage === 1}
+        size="sm"
+        startIcon={<ChevronLeftIcon />}
+        variant="outline"
+        onClick={() => goToPage(currentPage - 1)}
+      >
+        قبلی
+      </Button>
 
       {pages.map((page, index) =>
         page === DOTS ? (
@@ -100,16 +99,15 @@ const Pagination = ({
         )
       )}
 
-      {currentPage !== totalPages && (
-        <Button
-          size="sm"
-          endIcon={<ChevronLeftIcon className="rotate-180 transform" />}
-          variant="outline"
-          onClick={() => goToPage(currentPage + 1)}
-        >
-          بعدی
-        </Button>
-      )}
+      <Button
+        disabled={currentPage === totalPages}
+        size="sm"
+        endIcon={<ChevronLeftIcon className="rotate-180 transform" />}
+        variant="outline"
+        onClick={() => goToPage(currentPage + 1)}
+      >
+        بعدی
+      </Button>
     </div>
   );
 };
