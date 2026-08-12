@@ -7,6 +7,7 @@ export { default as Input } from './form/input';
 export { default as Label } from './form/Label';
 export { default as Link } from './link';
 export { default as CSelect } from './select';
+export { default as CreatableSelectInput } from './select/CreatableSelectInput';
 export { default as Switch } from './Switch';
 export { default as Tab } from './tab';
 export { default as Table } from './table';

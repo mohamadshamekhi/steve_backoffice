@@ -3,7 +3,7 @@
 import { ErrorMessage, Field, FieldArray, Form, Formik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
-import { Button } from 'libs/ui';
+import { Button, CreatableSelectInput } from 'libs/ui';
 import LoadingState from 'libs/ui/loadingState';
 import { attributeSchema } from 'libs/validator/schemas/attributes.schema';
 import { useState } from 'react';
@@ -17,6 +17,13 @@ interface Attribute {
     id: number;
     key: string;
     name: string;
+}
+
+interface FilterOption {
+    key: string;
+    name: string;
+    unit: string;
+    options: string[];
 }
 
 const ProductVariant = ({ id }: { id: string }) => {
@@ -34,6 +41,20 @@ const ProductVariant = ({ id }: { id: string }) => {
 
     const attributeSet: Attribute[] = product?.data?.product?.category?.attribute_set ?? [];
     const specifications = (product?.data?.product?.specifications ?? []) as { key: string; value: string }[];
+    const categoryId: string | undefined = product?.data?.product?.category?.id;
+
+    const { data: filterData } = useSWR(
+        categoryId ? ApiKeys.GET_CATEGORY_FILTER(categoryId) : null,
+        (url: string) => fetcher(url, 'web', 'GET')
+    );
+
+    const filterOptions: FilterOption[] = filterData?.data?.filter_option ?? [];
+
+    const getValueOptions = (key: string) =>
+        (filterOptions.find((f) => f.key === key)?.options ?? []).map((option) => ({
+            label: option,
+            value: option
+        }));
 
     const initialValues: FormValues = {
         attributes: attributeSet.length
@@ -86,7 +107,7 @@ const ProductVariant = ({ id }: { id: string }) => {
                     }
                 }}
             >
-                {({ values }) => (
+                {({ values, setFieldValue }) => (
                     <Form>
                         <FieldArray name='attributes'>
                             {({}) => (
@@ -121,10 +142,16 @@ const ProductVariant = ({ id }: { id: string }) => {
 
                                                 <div>
                                                     <label htmlFor={`attributes.${index}.value`}>مقدار</label>
-                                                    <Field
-                                                        name={`attributes.${index}.value`}
-                                                        className='shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/20 dark:focus:border-brand-800 mt-2 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-right text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30'
-                                                    />
+                                                    <div className='mt-2'>
+                                                        <CreatableSelectInput
+                                                            name={`attributes.${index}.value`}
+                                                            value={attr.value}
+                                                            options={getValueOptions(attr.key)}
+                                                            onChange={(value) =>
+                                                                setFieldValue(`attributes.${index}.value`, value)
+                                                            }
+                                                        />
+                                                    </div>
 
                                                     <ErrorMessage
                                                         name={`attributes.${index}.value`}
