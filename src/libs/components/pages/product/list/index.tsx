@@ -10,6 +10,7 @@ import ROUTES from 'libs/constants/routes/routes.constants';
 import { useModal } from 'libs/hooks/modal/useModal';
 import { Badge, Button, Input, Switch, Table } from 'libs/ui';
 import { Dropdown } from 'libs/ui/dropdown/Dropdown';
+import { parseCookies } from 'nookies';
 import Image, { StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -18,8 +19,11 @@ import { toast } from 'react-toastify';
 import useSWR from 'swr';
 import noPic from '../../../../../../public/images/placeholder/no-pic.png';
 
+const STOREFRONT_URL = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? 'https://stevemobile.com';
+
 interface ProductModel {
     id: string;
+    slug: string;
     media_id: StaticImageData | string;
     name: string;
     en_title: string;
@@ -31,7 +35,7 @@ interface ProductModel {
     is_published: boolean;
 }
 
-const ActionCell = ({ id, onDeleted }: { id: string; onDeleted: () => void }) => {
+const ActionCell = ({ id, slug, onDeleted }: { id: string; slug: string; onDeleted: () => void }) => {
     const [isOpenMenu, setIsOpenMenu] = useState(false);
     const { openModal, isOpen, closeModal } = useModal();
 
@@ -64,7 +68,9 @@ const ActionCell = ({ id, onDeleted }: { id: string; onDeleted: () => void }) =>
             <Dropdown isOpen={isOpenMenu} onClose={closeDropdown} className='left-10 min-w-[150px]'>
                 <Dropdown.Item
                     tag='a'
-                    href={`/dashboard/product/${id}`}
+                    href={`${STOREFRONT_URL}/product/${slug}`}
+                    target='_blank'
+                    rel='noopener noreferrer'
                     onItemClick={() => {
                         closeDropdown();
                     }}
@@ -108,8 +114,40 @@ const List = () => {
     const searchParams = useSearchParams();
     const page = Number(searchParams.get('page')) || 1;
     const [searchTerm, setSearchTerm] = useState('');
+    const [exporting, setExporting] = useState(false);
 
     const limit = 10;
+
+    const handleExportExcel = async () => {
+        try {
+            setExporting(true);
+
+            const cookie = parseCookies();
+            const access_token = cookie['steve-session'];
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${ApiKeys.GET_PRODUCT_EXPORT_EXCEL}`, {
+                headers: { Authorization: `Bearer ${access_token}` }
+            });
+
+            if (!response.ok) throw new Error('خطا در دریافت فایل خروجی');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = `products-${Date.now()}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export products excel:', error);
+            toast.error('خطا در دریافت فایل خروجی اکسل');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const setPage = (newPage: number) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -238,6 +276,7 @@ const List = () => {
             cell: ({ row }) => (
                 <ActionCell
                     id={row.original.id}
+                    slug={row.original.slug}
                     onDeleted={() => {
                         mutate();
                     }}
@@ -251,12 +290,18 @@ const List = () => {
         <ContentWrapper
             title='لیست محصولات'
             extra={
-                <Link
-                    className='bg-brand-500 hover:bg-brand-600 rounded-md px-4 py-2 text-sm font-semibold text-white'
-                    href={ROUTES.CreateProduct}
-                >
-                    درج محصول +
-                </Link>
+                <div className='flex items-center gap-3'>
+                    <Button size='sm' variant='outline' loading={exporting} onClick={handleExportExcel}>
+                        خروجی اکسل
+                    </Button>
+
+                    <Link
+                        className='bg-brand-500 hover:bg-brand-600 rounded-md px-4 py-2 text-sm font-semibold text-white'
+                        href={ROUTES.CreateProduct}
+                    >
+                        درج محصول +
+                    </Link>
+                </div>
             }
         >
             <div className='mb-4'>

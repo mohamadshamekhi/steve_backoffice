@@ -8,6 +8,8 @@ export interface DropdownProps {
 export interface DropdownItemProps {
     tag?: 'a' | 'button';
     href?: string;
+    target?: string;
+    rel?: string;
     onClick?: () => void;
     onItemClick?: () => void;
     baseClassName?: string;

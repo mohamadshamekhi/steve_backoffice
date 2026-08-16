@@ -9,6 +9,8 @@ const keys = {
 
     GET_ALL_PRODUCT: '/product',
 
+    GET_PRODUCT_EXPORT_EXCEL: '/product/export-excel',
+
     PATCH_PRODUCT_ADD_GALLERY: '/product/add-product-gallery',
 
     PATCH_PRODUCT_DELETE_GALLERY: `/product/delete-product-gallery`,
