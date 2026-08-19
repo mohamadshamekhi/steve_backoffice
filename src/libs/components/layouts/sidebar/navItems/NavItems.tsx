@@ -46,6 +46,10 @@ export const navItems: NavItem[] = [
     subItems: [
       { name: "لیست محصولات", path: ROUTES.Products, pro: false },
       { name: "درج محصولات", path: ROUTES.CreateProduct },
+      {
+        name: "اپدیت کردن قیمت گوشی و تبلت",
+        path: ROUTES.UpdatePhoneTabletPrice,
+      },
     ],
   },
   {

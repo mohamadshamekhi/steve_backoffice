@@ -4,6 +4,7 @@ const ROUTES = {
   CreateBlog: "/dashboard/blog/create",
   Products: "/dashboard/product",
   CreateProduct: "/dashboard/product/create",
+  UpdatePhoneTabletPrice: "/dashboard/product/update-price",
   Brand: "/dashboard/brand",
   CreateBrand: "/dashboard/brand/create",
   Banners: "/dashboard/banner",

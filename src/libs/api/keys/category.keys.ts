@@ -4,6 +4,7 @@ const keys = {
     DELETE_CATEGORY: (id: string) => `/category/${id}`,
     PATCH_CATEGORY: (id: string) => `/category/${id}`,
     GET_ALL_CATEGORY: '/category',
+    GET_ALL_CATEGORY_STOREFRONT: '/category/storefront',
     GET_CATEGORY_FILTER: (id: string) => `/category/storefront/get-filter/${id}`
 };
 
