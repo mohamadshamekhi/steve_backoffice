@@ -19,12 +19,12 @@ export const useACLStore = create<IACLStore>()(
         (set, get) => ({
             permissions: [],
             roles: [],
-            setACL: (permissions, roles) => set({ permissions, roles }),
+            setACL: (permissions, roles) => set({ permissions: permissions ?? [], roles: roles ?? [] }),
             clearACL: () => set({ permissions: [], roles: [] }),
-            hasPermission: (key) => get().permissions.includes(key),
-            hasAnyPermission: (keys) => keys.some((key) => get().permissions.includes(key)),
-            hasAllPermissions: (keys) => keys.every((key) => get().permissions.includes(key)),
-            hasRole: (role) => get().roles.includes(role)
+            hasPermission: (key) => (get().permissions ?? []).includes(key),
+            hasAnyPermission: (keys) => keys.some((key) => (get().permissions ?? []).includes(key)),
+            hasAllPermissions: (keys) => keys.every((key) => (get().permissions ?? []).includes(key)),
+            hasRole: (role) => (get().roles ?? []).includes(role)
         }),
         {
             name: 'steve-acl'

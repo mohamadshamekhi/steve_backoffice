@@ -104,6 +104,47 @@ export const navItems: NavItem[] = [
     subItems: [{ name: "لیست فروش", path: ROUTES.Sells, pro: false }],
   },
   {
+    icon: <UserCircleIcon />,
+    name: "همکاران",
+    subItems: [
+      { name: "درخواست‌های همکاری", path: ROUTES.Partners, pro: false },
+    ],
+  },
+  {
+    icon: <DiscountIcon />,
+    name: "ریفرال",
+    permission: "referral:list",
+    roles: ["super_admin", "marketing_manager"],
+    subItems: [
+      {
+        name: "لیدربرد دعوت‌ها",
+        path: ROUTES.Referral,
+        pro: false,
+        permission: "referral:list",
+        roles: ["super_admin", "marketing_manager"],
+      },
+      {
+        name: "تنظیمات تخفیف",
+        path: ROUTES.ReferralSettings,
+        pro: false,
+        permission: "referral:manage",
+        roles: ["super_admin", "marketing_manager"],
+      },
+    ],
+  },
+  {
+    icon: <ShoppingIcon />,
+    name: "لیست محصولات",
+    path: ROUTES.PartnerShop,
+    roles: ["partner"],
+  },
+  {
+    icon: <CartIcon />,
+    name: "خریدهای من",
+    path: ROUTES.PartnerShopMyOrders,
+    roles: ["partner"],
+  },
+  {
     icon: <BookIcon />,
     name: "بلاگ ها",
     subItems: [

@@ -1,6 +1,6 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import collapseLogo from '../../../../../public/images/_general/logo-image.png';
 import logo from '../../../../../public/images/_general/logo.png';
@@ -8,6 +8,9 @@ import logo from '../../../../../public/images/_general/logo.png';
 import ChevronDownIcon from 'libs/components/icons/ChevronDownIcon';
 import HorizontalDotsIcon from 'libs/components/icons/HorizontalDotsIcon';
 import useMediaQuery from 'libs/hooks/mediaQuery/useMediaQuery';
+import { SCOPED_ONLY_ROLES } from 'libs/components/common/ScopedRoleGuard';
+import ROUTES from 'libs/constants/routes/routes.constants';
+import { useACLStore } from 'libs/state/stores/acl';
 import { useSidebarStore } from 'libs/state/stores/sidebar';
 import { Link } from 'libs/ui';
 import Image from 'next/image';
@@ -22,6 +25,52 @@ const Sidebar: React.FC = () => {
     const setIsHovered = useSidebarStore((state) => state.setIsHovered);
 
     const isMobile = useMediaQuery('lg');
+
+    const permissions = useACLStore((state) => state.permissions);
+    const roles = useACLStore((state) => state.roles);
+
+    const visibleNavItems: NavItem[] = useMemo(() => {
+        const keys = permissions ?? [];
+        const userRoles = roles ?? [];
+
+        // A user whose every role is "scoped-only" (e.g. a pure partner) never sees the
+        // full admin nav — only the dashboard landing and menus scoped to their role.
+        const isScopedOnly =
+            userRoles.length > 0 && userRoles.every((role) => SCOPED_ONLY_ROLES.includes(role));
+
+        const hasPermission = (permission?: string) => !!permission && keys.includes(permission);
+        const hasAnyRole = (itemRoles?: string[]) =>
+            !!itemRoles && itemRoles.some((role) => userRoles.includes(role));
+
+        // An item can be gated by `permission`, `roles`, or both. When both are set,
+        // holding EITHER grants access. Items scoped entirely to "scoped-only" roles
+        // (the partner shop) are shown only to users who are themselves scoped-only.
+        const isGateAllowed = (item: { permission?: string; roles?: string[] }) => {
+            const { permission, roles: itemRoles } = item;
+            if (itemRoles && itemRoles.every((role) => SCOPED_ONLY_ROLES.includes(role))) {
+                return isScopedOnly && hasAnyRole(itemRoles);
+            }
+            if (!permission && !itemRoles) return true;
+            return hasPermission(permission) || hasAnyRole(itemRoles);
+        };
+
+        return navItems
+            .filter((nav) => {
+                if (isScopedOnly) return nav.path === ROUTES.Dashboard || !!nav.roles;
+                return true;
+            })
+            .map((nav) => {
+                if (nav.subItems) {
+                    return { ...nav, subItems: nav.subItems.filter(isGateAllowed) };
+                }
+                return nav;
+            })
+            .filter((nav) => {
+                if (!isGateAllowed(nav)) return false;
+                if (nav.subItems && nav.subItems.length === 0 && !nav.path) return false;
+                return true;
+            });
+    }, [permissions, roles]);
 
     const pathname = usePathname();
 
@@ -41,7 +90,7 @@ const Sidebar: React.FC = () => {
 
     useEffect(() => {
         let submenuMatched = false;
-        navItems.forEach((nav, index) => {
+        visibleNavItems.forEach((nav, index) => {
             if (nav.subItems) {
                 nav.subItems.forEach((subItem) => {
                     if (isActive(subItem.path)) {
@@ -55,7 +104,7 @@ const Sidebar: React.FC = () => {
         if (!submenuMatched) {
             setOpenSubmenu(null);
         }
-    }, [isActive]);
+    }, [isActive, visibleNavItems]);
 
     useEffect(() => {
         if (openSubmenu !== null) {
@@ -215,7 +264,7 @@ const Sidebar: React.FC = () => {
                                     <HorizontalDotsIcon className='size-6' />
                                 )}
                             </h2>
-                            {renderMenuItems(navItems)}
+                            {renderMenuItems(visibleNavItems)}
                         </div>
                     </div>
                 </nav>

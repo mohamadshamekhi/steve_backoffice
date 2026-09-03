@@ -11,7 +11,10 @@ import commonKeys from "./common.keys";
 import discountKeys from "./discount.keys";
 import mediaKeys from "./media.keys";
 import orderKeys from "./order.keys";
+import partnerKeys from "./partner.keys";
+import partnerShopKeys from "./partnerShop.keys";
 import productKeys from "./product.keys";
+import referralKeys from "./referral.keys";
 import repairKeys from "./repairs.keys";
 import sellsKeys from "./sells.keys";
 import shippingKeys from "./shipping.keys";
@@ -33,6 +36,9 @@ const ApiKeys = {
   ...userKeys,
   ...cartKeys,
   ...orderKeys,
+  ...partnerKeys,
+  ...partnerShopKeys,
+  ...referralKeys,
   ...repairKeys,
   ...sellsKeys,
   ...shippingKeys,

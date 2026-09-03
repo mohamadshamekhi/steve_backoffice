@@ -5,7 +5,7 @@ import { useACLStore } from 'libs/state/stores/acl';
 type Mode = 'any' | 'all';
 
 export function usePermission(permission: string | string[], mode: Mode = 'any'): boolean {
-    const permissions = useACLStore((state) => state.permissions);
+    const permissions = useACLStore((state) => state.permissions) ?? [];
 
     if (typeof permission === 'string') {
         return permissions.includes(permission);
@@ -19,7 +19,7 @@ export function usePermission(permission: string | string[], mode: Mode = 'any')
 }
 
 export function useRole(role: string | string[]): boolean {
-    const roles = useACLStore((state) => state.roles);
+    const roles = useACLStore((state) => state.roles) ?? [];
 
     if (typeof role === 'string') {
         return roles.includes(role);

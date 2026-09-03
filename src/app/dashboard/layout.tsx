@@ -1,5 +1,6 @@
 'use client';
 
+import { ScopedRoleGuard } from 'libs/components/common';
 import React from 'react';
 import AppHeader from '../../libs/components/layouts/AppHeader';
 import Backdrop from '../../libs/components/layouts/Backdrop';
@@ -27,7 +28,9 @@ const Layout: React.FC<LayoutContentProps> = ({ children }) => {
             >
                 <AppHeader />
                 <div className='mx-auto max-w-[var(--breakpoint-2xl)] p-4 md:p-6'>
-                    <ClientPage components={children} />
+                    <ScopedRoleGuard>
+                        <ClientPage components={children} />
+                    </ScopedRoleGuard>
                 </div>
             </div>
         </div>

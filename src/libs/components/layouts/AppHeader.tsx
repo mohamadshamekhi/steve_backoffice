@@ -1,5 +1,6 @@
 'use client';
 import ROUTES from 'libs/constants/routes/routes.constants';
+import PartnerCartMenu from 'libs/components/pages/partnerShop/cartMenu';
 import { useSidebarStore } from 'libs/state/stores/sidebar';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -115,6 +116,7 @@ const AppHeader: React.FC = () => {
                         {/* <!-- Dark Mode Toggler --> */}
                         {/* <NotificationDropdown /> */}
                         {/* <!-- Notification Menu Area --> */}
+                        <PartnerCartMenu />
                     </div>
                     {/* <!-- User Area --> */}
                     <UserDropdown />
