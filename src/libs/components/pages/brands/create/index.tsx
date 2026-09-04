@@ -24,6 +24,7 @@ const Create = () => {
         initialValues: {
             name: '',
             description: '',
+            slug: '',
             media_id: null
         },
 
@@ -32,10 +33,12 @@ const Create = () => {
         onSubmit: async (values) => {
             try {
                 setLoading(true);
+                const body: Record<string, unknown> = { ...values };
+                if (!body.slug) {
+                    delete body.slug;
+                }
                 const { status } = await fetcher(ApiKeys.POST_BRAND, 'dashboard', 'POST', {
-                    body: {
-                        ...values
-                    }
+                    body
                 });
 
                 if (status !== 400) {
@@ -79,6 +82,28 @@ const Create = () => {
                         onChange={formik.handleChange}
                         value={formik.values.name}
                     />
+                </Fieldset>
+
+                <Fieldset
+                    label='اسلاگ (slug)'
+                    name='slug'
+                    touched={formik.touched}
+                    errors={formik.errors}
+                    className='col-span-2 w-full'
+                >
+                    <Input
+                        name='slug'
+                        type='text'
+                        dir='ltr'
+                        placeholder='samsung'
+                        error={Boolean(formik.touched.slug && formik.errors.slug)}
+                        onChange={formik.handleChange}
+                        value={formik.values.slug}
+                    />
+                    <div className='text-xs text-gray-500'>
+                        در صورت خالی ماندن، اسلاگ به‌صورت خودکار از روی نام ساخته می‌شود که ممکن است فارسی باشد. برای
+                        سئوی بهتر، اسلاگ انگلیسی (مثلاً samsung) را دستی وارد کنید.
+                    </div>
                 </Fieldset>
 
                 <Fieldset

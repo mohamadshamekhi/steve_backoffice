@@ -24,6 +24,7 @@ type Brand = {
     id: string;
     name: string;
     description: string;
+    slug?: string;
     url: string;
 };
 
@@ -183,6 +184,21 @@ const List = () => {
             cell: ({ row }) => (
                 <div className='line-clamp-2 max-w-[300px] overflow-ellipsis'>{row.original.description}</div>
             )
+        },
+        {
+            accessorKey: 'slug',
+            header: 'اسلاگ',
+            enableResizing: true,
+            filterFn: 'includesString',
+            enableSorting: true,
+            cell: ({ row }) =>
+                row.original.slug ? (
+                    <span dir='ltr' className='font-mono text-sm'>
+                        {row.original.slug}
+                    </span>
+                ) : (
+                    <span className='text-xs text-red-500'>تنظیم نشده</span>
+                )
         },
         {
             id: 'actions',

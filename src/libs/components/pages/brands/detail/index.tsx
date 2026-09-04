@@ -37,6 +37,9 @@ const Detail = ({ id, isOpen, onClose }: { id: string; isOpen: boolean; onClose:
                         height={350}
                     />
                     <h3 className='text-lg font-semibold'>{data.data.name}</h3>
+                    <div className='text-sm text-gray-400' dir='ltr'>
+                        {data.data.slug || 'اسلاگ تنظیم نشده'}
+                    </div>
                     <div className='text-md text-gray-500'>{data.data.description}</div>
                 </div>
             )}

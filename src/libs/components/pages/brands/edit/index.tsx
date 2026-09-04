@@ -18,6 +18,7 @@ type Brand = {
     id: string;
     name: string;
     description: string;
+    slug?: string;
     url: string;
 };
 
@@ -37,6 +38,7 @@ const Edit = ({ onClose, data, onUpdated, isOpen }: ActionCellProps) => {
         initialValues: {
             name: data.name,
             description: data.description,
+            slug: data.slug ?? '',
             media_id: null
         },
         validationSchema: toFormikValidationSchema(brandEditValidationSchema),
@@ -46,8 +48,13 @@ const Edit = ({ onClose, data, onUpdated, isOpen }: ActionCellProps) => {
 
                 const payload: Record<string, any> = {
                     name: values.name,
-                    description: values.description
+                    description: values.description,
+                    slug: values.slug
                 };
+
+                if (!payload.slug) {
+                    delete payload.slug;
+                }
 
                 if (values.media_id) {
                     payload.media_id = values.media_id;
@@ -85,6 +92,24 @@ const Edit = ({ onClose, data, onUpdated, isOpen }: ActionCellProps) => {
                             error={Boolean(formik.touched.name && formik.errors.name)}
                             onChange={formik.handleChange}
                             value={formik.values.name}
+                        />
+                    </Fieldset>
+
+                    <Fieldset
+                        label='اسلاگ (slug)'
+                        name='slug'
+                        touched={formik.touched}
+                        errors={formik.errors}
+                        className='col-span-2 w-full md:col-span-1'
+                    >
+                        <Input
+                            name='slug'
+                            type='text'
+                            dir='ltr'
+                            placeholder='samsung'
+                            error={Boolean(formik.touched.slug && formik.errors.slug)}
+                            onChange={formik.handleChange}
+                            value={formik.values.slug}
                         />
                     </Fieldset>
 
