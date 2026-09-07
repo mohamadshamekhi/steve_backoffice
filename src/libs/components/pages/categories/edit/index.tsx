@@ -57,14 +57,16 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
         (url: string) => fetcher(url, 'dashboard', 'GET')
     );
 
-    // const { isLoading: categoryLoading, data: categoryData } = useSWR([ApiKeys.GET_ALL_CATEGORY], () =>
-    //     fetcher(ApiKeys.GET_ALL_CATEGORY, 'dashboard', 'GET', {
-    //         params: {
-    //             page_number: 1,
-    //             page_size: 100
-    //         }
-    //     })
-    // );
+    const { isLoading: categoryLoading, data: categoryData } = useSWR(
+        isOpen ? [ApiKeys.GET_ALL_CATEGORY, 'edit-parent'] : null,
+        () =>
+            fetcher(ApiKeys.GET_ALL_CATEGORY, 'dashboard', 'GET', {
+                params: {
+                    page_number: 1,
+                    page_size: 100
+                }
+            })
+    );
 
     const category = categoryDetail?.data?.category;
 
@@ -74,7 +76,7 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
             name: category?.name ?? '',
             description: category?.description ?? '',
             media_id: null as string | null,
-            attribute_set_id: category?.attribute_set?.[0]?.id ?? '',
+            attribute_set_id: category?.attribute_set_id ?? category?.attribute_set?.[0]?.id ?? '',
             parent_id: category?.parent_id ?? ''
         },
 
@@ -95,8 +97,10 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
                 if (values.attribute_set_id) {
                     payload.attribute_set_id = values.attribute_set_id;
                 }
-                if (values.parent_id) {
-                    payload.parent_id = values.parent_id;
+                // send parent_id whenever it changed — an empty value detaches the
+                // category from its parent (makes it a root category)
+                if ((values.parent_id ?? '') !== (category?.parent_id ?? '')) {
+                    payload.parent_id = values.parent_id ? values.parent_id : null;
                 }
 
                 const { status } = await fetcher(ApiKeys.PATCH_CATEGORY(id), 'dashboard', 'PATCH', {
@@ -143,7 +147,7 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
                             />
                         </Fieldset>
 
-                        {/* <Fieldset
+                        <Fieldset
                             label='نام سرگروه'
                             name='parent_id'
                             touched={formik.touched}
@@ -155,14 +159,16 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
                                 name='parent_id'
                                 options={
                                     categoryData?.data?.categories
-                                        ? mapToSelectOptions(categoryData?.data?.categories)
+                                        ? mapToSelectOptions(
+                                              categoryData.data.categories.filter((c: InputItem) => c.id !== id)
+                                          )
                                         : []
                                 }
                                 value={formik.values.parent_id ?? ''}
                                 error={Boolean(formik.touched.parent_id && formik.errors.parent_id)}
                                 onChange={(val) => formik.setFieldValue('parent_id', val)}
                             />
-                        </Fieldset> */}
+                        </Fieldset>
 
                         <Fieldset
                             label='ویژگی'

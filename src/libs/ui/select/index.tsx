@@ -44,6 +44,11 @@ const customStyles = {
         color: '#1f2937'
     }),
 
+    menuPortal: (base: any) => ({
+        ...base,
+        zIndex: 100000
+    }),
+
     menu: (base: any) => ({
         ...base,
         zIndex: 50,
@@ -101,6 +106,8 @@ const SelectInput: React.FC<SelectInputProps> = ({ name, options, value, error, 
             options={options}
             classNamePrefix='react-select'
             placeholder='انتخاب کنید'
+            menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
+            menuPosition='fixed'
             isClearable
             styles={{
                 ...customStyles,
