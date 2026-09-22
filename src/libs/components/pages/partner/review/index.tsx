@@ -5,6 +5,7 @@ import ApiKeys from 'libs/api/keys';
 import { IPartner } from 'libs/models/partner.model';
 import { Badge, Button } from 'libs/ui';
 import TextArea from 'libs/ui/form/textArea';
+import { toEnglishDigits } from 'libs/utilities';
 import { ChangeEvent, useState } from 'react';
 import { toast } from 'react-toastify';
 import { formatPartnerDate, getPartnerStatusConfig } from '../constants';
@@ -106,7 +107,7 @@ const Review = ({ partner, onDone }: ReviewProps) => {
                             min={0}
                             max={90}
                             value={approveDiscount}
-                            onChange={(e) => setApproveDiscount(e.target.value)}
+                            onChange={(e) => setApproveDiscount(toEnglishDigits(e.target.value))}
                             className='shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 mb-3 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90'
                         />
                         <Button
@@ -152,7 +153,7 @@ const Review = ({ partner, onDone }: ReviewProps) => {
                             min={0}
                             max={90}
                             value={pricingDiscount}
-                            onChange={(e) => setPricingDiscount(e.target.value)}
+                            onChange={(e) => setPricingDiscount(toEnglishDigits(e.target.value))}
                             className='shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 mb-3 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm focus:ring-3 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90'
                         />
                         <Button

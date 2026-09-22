@@ -2,6 +2,8 @@
 import { useFormik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
+import VariantStockFields from 'libs/components/pages/product/variantStockFields';
+import { StockMode } from 'libs/models/warehouse.model';
 import { Button, Input } from 'libs/ui';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
 import { Modal } from 'libs/ui/modal';
@@ -22,6 +24,12 @@ interface ActionCellProps {
     quantity: number;
     warranty: string;
     variant_attribute: VariantAttribute[];
+    stock_mode?: StockMode;
+    allow_backorder?: boolean;
+    backorder_limit?: number | null;
+    supplier_id?: string;
+    supply_cost?: number;
+    avg_cost?: number;
 }
 
 type EditVariantProps = {
@@ -31,6 +39,7 @@ type EditVariantProps = {
     mutate: () => void;
     isOpen: boolean;
     data: ActionCellProps;
+    isService?: boolean;
 };
 
 type FormValues = {
@@ -40,9 +49,14 @@ type FormValues = {
     key: string;
     value: string;
     warranty: string;
+    stock_mode: StockMode;
+    allow_backorder: boolean;
+    backorder_limit: string;
+    supplier_id: string;
+    supply_cost: number;
 };
 
-const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data }: EditVariantProps) => {
+const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data, isService = false }: EditVariantProps) => {
     const [loading, setLoading] = useState(false);
 
     const initialVariantAttribute = data.variant_attribute?.[0] ?? {
@@ -58,7 +72,15 @@ const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data }: EditVaria
             label: initialVariantAttribute.label,
             key: initialVariantAttribute.key,
             value: initialVariantAttribute.value,
-            warranty: data.warranty
+            warranty: data.warranty,
+            stock_mode: (isService ? 'none' : (data.stock_mode ?? 'tracked')) as StockMode,
+            allow_backorder: data.allow_backorder ?? false,
+            backorder_limit:
+                data.backorder_limit === null || data.backorder_limit === undefined
+                    ? ''
+                    : String(data.backorder_limit),
+            supplier_id: data.supplier_id ?? '',
+            supply_cost: data.supply_cost ?? 0
         },
         validationSchema: toFormikValidationSchema(ProductVariantSchema),
         onSubmit: async (values) => {
@@ -69,9 +91,30 @@ const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data }: EditVaria
                     'dashboard',
                     'PATCH',
                     {
-                        body: {
-                            ...values
-                        }
+                        body: (() => {
+                            const {
+                                stock_mode,
+                                allow_backorder,
+                                backorder_limit,
+                                supplier_id,
+                                supply_cost,
+                                ...rest
+                            } = values;
+
+                            return {
+                                ...rest,
+                                // Only a tracked variant carries a real quantity.
+                                quantity: stock_mode === 'tracked' ? rest.quantity : 0,
+                                stock_mode,
+                                allow_backorder: stock_mode === 'tracked' ? allow_backorder : false,
+                                backorder_limit:
+                                    stock_mode === 'tracked' && allow_backorder && backorder_limit !== ''
+                                        ? Number(backorder_limit)
+                                        : null,
+                                supplier_id,
+                                supply_cost: Number(supply_cost || 0)
+                            };
+                        })()
                     }
                 );
 
@@ -109,23 +152,25 @@ const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data }: EditVaria
                         />
                     </Fieldset>
 
-                    <Fieldset
-                        label='تعداد'
-                        name='quantity'
-                        touched={formik.touched}
-                        errors={formik.errors}
-                        className='col-span-2 w-full md:col-span-1'
-                    >
-                        <Input
+                    {formik.values.stock_mode === 'tracked' && (
+                        <Fieldset
+                            label='تعداد'
                             name='quantity'
-                            type='number'
-                            error={Boolean(formik.touched.quantity && formik.errors.quantity)}
-                            onChange={formik.handleChange}
-                            value={formik.values.quantity}
-                            inputMode='numeric'
-                            min='0'
-                        />
-                    </Fieldset>
+                            touched={formik.touched}
+                            errors={formik.errors}
+                            className='col-span-2 w-full md:col-span-1'
+                        >
+                            <Input
+                                name='quantity'
+                                type='number'
+                                error={Boolean(formik.touched.quantity && formik.errors.quantity)}
+                                onChange={formik.handleChange}
+                                value={formik.values.quantity}
+                                inputMode='numeric'
+                                min='0'
+                            />
+                        </Fieldset>
+                    )}
                     <Fieldset
                         label='برچسب'
                         name='label'
@@ -189,6 +234,12 @@ const EditVariant = ({ id, onUpdated, onClose, mutate, isOpen, data }: EditVaria
                             hint='لطفا قیمت را به تومان وارد نمایید'
                         />
                     </Fieldset>
+                    <VariantStockFields
+                        values={formik.values}
+                        setFieldValue={formik.setFieldValue}
+                        isService={isService}
+                        avgCost={data.avg_cost}
+                    />
                 </div>
                 <div className='mt-5 flex items-center justify-end gap-2'>
                     <Button disabled={loading} loading={loading} size='sm' type='submit'>

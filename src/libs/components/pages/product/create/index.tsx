@@ -3,6 +3,9 @@ import { useFormik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
 import ContentWrapper from 'libs/components/common/contentWrapper/ContentWrapper';
+import ProductKindChannels from 'libs/components/pages/product/kindChannels';
+import ServicePriceField from 'libs/components/pages/product/priceField';
+import { ProductKind, SalesChannel } from 'libs/models/warehouse.model';
 import { Button, Input, Switch } from 'libs/ui';
 import Tiptap from 'libs/ui/form/editor';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
@@ -17,28 +20,46 @@ const Create = () => {
     const router = useRouter();
     const [loading, setLoading] = useState<boolean>(false);
 
-    const formik = useFormik({
+    const formik = useFormik<{
+        name: string;
+        en_title: string;
+        brand_id: string;
+        category_id: string;
+        description: string;
+        is_second_hand: boolean;
+        kind: ProductKind;
+        sales_channels: SalesChannel[];
+        price: number;
+    }>({
         initialValues: {
             name: '',
             en_title: '',
             brand_id: '',
             category_id: '',
             description: '',
-            is_second_hand: false
+            is_second_hand: false,
+            kind: 'physical',
+            sales_channels: ['website', 'in_person'],
+            price: 0
         },
         validationSchema: toFormikValidationSchema(productValidationSchema),
 
         onSubmit: async (values) => {
             setLoading(true);
             try {
-                const { status } = await fetcher(ApiKeys.POST_PRODUCT, 'dashboard', 'POST', {
-                    body: {
-                        ...values
-                    }
+                const isService = values.kind === 'service';
+                // خدمات برند/دسته‌بندی ندارند و قیمتشان مستقیم روی محصول ثبت می‌شود.
+                const { price, brand_id, category_id, ...rest } = values;
+                const response = await fetcher(ApiKeys.POST_PRODUCT, 'dashboard', 'POST', {
+                    body: isService ? { ...rest, price } : { ...rest, brand_id, category_id }
                 });
-                if (status !== 400) {
+
+                const id = response?.data?.product?.id;
+
+                if (response?.success) {
                     toast.success('محصول با موفقیت اضافه شد');
-                    router.push('/dashboard/product');
+                    // Land on the product page so variants/price can be added right away.
+                    router.push(id ? `/dashboard/product/edit/${id}` : '/dashboard/product');
                 }
             } catch (error) {
                 console.log(error);
@@ -129,36 +150,50 @@ const Create = () => {
                             value={formik.values.en_title}
                         />
                     </Fieldset>
-                    <Fieldset
-                        label='دسته بندی'
-                        name='category_id'
-                        touched={formik.touched}
-                        errors={formik.errors}
-                        className='col-span-2 w-full md:col-span-1'
-                    >
-                        <AsyncSelectInput
-                            name='category_id'
-                            loadOptions={loadCategoryOptions}
-                            value={formik.values.category_id}
-                            error={Boolean(formik.touched.category_id && formik.errors.category_id)}
-                            onChange={(val) => formik.setFieldValue('category_id', val)}
+                    {formik.values.kind !== 'service' && (
+                        <>
+                            <Fieldset
+                                label='دسته بندی'
+                                name='category_id'
+                                touched={formik.touched}
+                                errors={formik.errors}
+                                className='col-span-2 w-full md:col-span-1'
+                            >
+                                <AsyncSelectInput
+                                    name='category_id'
+                                    loadOptions={loadCategoryOptions}
+                                    value={formik.values.category_id}
+                                    error={Boolean(formik.touched.category_id && formik.errors.category_id)}
+                                    onChange={(val) => formik.setFieldValue('category_id', val)}
+                                />
+                            </Fieldset>
+                            <Fieldset
+                                label='برند'
+                                name='brand_id'
+                                touched={formik.touched}
+                                errors={formik.errors}
+                                className='md:col-span-1'
+                            >
+                                <AsyncSelectInput
+                                    name='brand_id'
+                                    loadOptions={loadBrandOptions}
+                                    value={formik.values.brand_id}
+                                    error={Boolean(formik.touched.brand_id && formik.errors.brand_id)}
+                                    onChange={(val) => formik.setFieldValue('brand_id', val)}
+                                />
+                            </Fieldset>
+                        </>
+                    )}
+
+                    {formik.values.kind === 'service' && (
+                        <ServicePriceField
+                            value={formik.values.price || ''}
+                            onChange={(price) => formik.setFieldValue('price', price)}
+                            touched={formik.touched}
+                            errors={formik.errors}
                         />
-                    </Fieldset>
-                    <Fieldset
-                        label='برند'
-                        name='brand_id'
-                        touched={formik.touched}
-                        errors={formik.errors}
-                        className='md:col-span-1'
-                    >
-                        <AsyncSelectInput
-                            name='brand_id'
-                            loadOptions={loadBrandOptions}
-                            value={formik.values.brand_id}
-                            error={Boolean(formik.touched.brand_id && formik.errors.brand_id)}
-                            onChange={(val) => formik.setFieldValue('brand_id', val)}
-                        />
-                    </Fieldset>
+                    )}
+
                     {/* <Fieldset
                         label='برند'
                         name='brand_id'
@@ -183,23 +218,34 @@ const Create = () => {
                             }}
                         />
                     </Fieldset> */}
-                    <Fieldset
-                        label='دسته دوم'
-                        name='is_second_hand'
-                        touched={formik.touched}
-                        errors={formik.errors}
-                        className='col-span-2 w-full md:col-span-1'
-                    >
-                        <Switch
-                            checked={formik.values.is_second_hand}
-                            onChange={(checked) => {
-                                formik.setFieldValue('is_second_hand', checked);
-                            }}
-                            size='md'
-                            variant='primary'
-                            name='is-second_hand'
-                        />
-                    </Fieldset>
+                    {formik.values.kind !== 'service' && (
+                        <Fieldset
+                            label='دسته دوم'
+                            name='is_second_hand'
+                            touched={formik.touched}
+                            errors={formik.errors}
+                            className='col-span-2 w-full md:col-span-1'
+                        >
+                            <Switch
+                                checked={formik.values.is_second_hand}
+                                onChange={(checked) => {
+                                    formik.setFieldValue('is_second_hand', checked);
+                                }}
+                                size='md'
+                                variant='primary'
+                                name='is-second_hand'
+                            />
+                        </Fieldset>
+                    )}
+
+                    <ProductKindChannels
+                        kind={formik.values.kind}
+                        salesChannels={formik.values.sales_channels}
+                        onKindChange={() => undefined}
+                        onChannelsChange={(channels) => formik.setFieldValue('sales_channels', channels)}
+                        error={formik.errors.sales_channels as string | undefined}
+                        lockedKindNote='این فرم مخصوص «کالا» است. برای تعمیر، ساخت اپل‌آیدی و مشابه از صفحه‌ی «درج خدمات» استفاده کنید.'
+                    />
 
                     <Fieldset
                         label='توضیحات'

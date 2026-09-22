@@ -31,3 +31,5 @@ export { default as TableIcon } from './TableIcon';
 export { default as TicketIcon } from './TicketIcon';
 export { default as TrashIcon } from './TrashIcon';
 export { default as UnOrderListIcon } from './UnOrderListIcon';
+export { default as WalletIcon } from './WalletIcon';
+export { default as WarehouseIcon } from './WarehouseIcon';

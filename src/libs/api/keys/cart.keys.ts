@@ -7,6 +7,9 @@ const keys = {
     BACKOFFICE_ADD_ITEM: '/backoffice/cart/add-item',
     BACKOFFICE_REMOVE_ITEM: '/backoffice/cart/remove-item',
     BACKOFFICE_DELETE_ITEM: '/backoffice/cart/delete-item',
+    BACKOFFICE_CUSTOM_ITEM: '/backoffice/cart/custom-item',
+    BACKOFFICE_ITEM_DISCOUNT: '/backoffice/cart/item-discount',
+    BACKOFFICE_CART_DISCOUNT: '/backoffice/cart/discount',
     BACKOFFICE_REGISTER_ORDER: '/backoffice/order/register',
     BACKOFFICE_COMPLETE_ORDER: '/backoffice/order/complete-order',
     BACKOFFICE_CHECK_PENDING_ORDER: (userId: string) => `/backoffice/order/check-pending-exist/${userId}`

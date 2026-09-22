@@ -2,6 +2,8 @@
 import { useFormik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
+import VariantStockFields from 'libs/components/pages/product/variantStockFields';
+import { StockMode } from 'libs/models/warehouse.model';
 import { Button, Input } from 'libs/ui';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
 import { Modal } from 'libs/ui/modal';
@@ -14,12 +16,14 @@ const AddVariant = ({
     id,
     onClose,
     mutate,
-    isOpen
+    isOpen,
+    isService = false
 }: {
     id: string;
     onClose: () => void;
     mutate: () => void;
     isOpen: boolean;
+    isService?: boolean;
 }) => {
     // const router = useRouter();
     const [loading, setLoading] = useState<boolean>(false);
@@ -31,15 +35,32 @@ const AddVariant = ({
             label: '',
             key: '',
             value: '',
-            warranty: ''
+            warranty: '',
+            stock_mode: (isService ? 'none' : 'tracked') as StockMode,
+            allow_backorder: false,
+            backorder_limit: '',
+            supplier_id: '',
+            supply_cost: 0
         },
         validationSchema: toFormikValidationSchema(ProductVariantSchema),
         onSubmit: async (values) => {
             try {
                 setLoading(true);
+                const { stock_mode, allow_backorder, backorder_limit, supplier_id, supply_cost, ...rest } = values;
+
                 const { status } = await fetcher(ApiKeys.PATCH_PRODUCT_ADD_VARIANT(id), 'dashboard', 'PATCH', {
                     body: {
-                        ...values
+                        ...rest,
+                        // Only a tracked variant carries a real quantity.
+                        quantity: stock_mode === 'tracked' ? rest.quantity : 0,
+                        stock_mode,
+                        allow_backorder: stock_mode === 'tracked' ? allow_backorder : false,
+                        backorder_limit:
+                            stock_mode === 'tracked' && allow_backorder && backorder_limit !== ''
+                                ? Number(backorder_limit)
+                                : null,
+                        supplier_id,
+                        supply_cost: Number(supply_cost || 0)
                     }
                 });
 
@@ -77,23 +98,25 @@ const AddVariant = ({
                         />
                     </Fieldset>
 
-                    <Fieldset
-                        label='تعداد'
-                        name='quantity'
-                        touched={formik.touched}
-                        errors={formik.errors}
-                        className='col-span-2 w-full md:col-span-1'
-                    >
-                        <Input
+                    {formik.values.stock_mode === 'tracked' && (
+                        <Fieldset
+                            label='تعداد'
                             name='quantity'
-                            type='number'
-                            error={Boolean(formik.touched.quantity && formik.errors.quantity)}
-                            onChange={formik.handleChange}
-                            value={formik.values.quantity}
-                            inputMode='numeric'
-                            min='0'
-                        />
-                    </Fieldset>
+                            touched={formik.touched}
+                            errors={formik.errors}
+                            className='col-span-2 w-full md:col-span-1'
+                        >
+                            <Input
+                                name='quantity'
+                                type='number'
+                                error={Boolean(formik.touched.quantity && formik.errors.quantity)}
+                                onChange={formik.handleChange}
+                                value={formik.values.quantity}
+                                inputMode='numeric'
+                                min='0'
+                            />
+                        </Fieldset>
+                    )}
                     <Fieldset
                         label='برچسب'
                         name='label'
@@ -157,6 +180,11 @@ const AddVariant = ({
                             hint='لطفا قیمت را به تومان وارد نمایید'
                         />
                     </Fieldset>
+                    <VariantStockFields
+                        values={formik.values}
+                        setFieldValue={formik.setFieldValue}
+                        isService={isService}
+                    />
                 </div>
                 <div className='mt-5 flex items-center justify-end gap-2'>
                     <Button disabled={loading} loading={loading} size='sm' type='submit'>

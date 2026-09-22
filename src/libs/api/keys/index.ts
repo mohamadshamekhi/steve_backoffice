@@ -1,3 +1,4 @@
+import accountingKeys from "./accounting.keys";
 import articleKeys from "./article.keys";
 import attributeKeys from "./attribute.keys";
 import attributeDefinition from "./attributeDefinition.keys";
@@ -8,16 +9,20 @@ import cartKeys from "./cart.keys";
 import categoryKeys from "./category.keys";
 import commentKeys from "./comment.keys";
 import commonKeys from "./common.keys";
+import dashboardKeys from "./dashboard.keys";
 import discountKeys from "./discount.keys";
+import inventoryKeys from "./inventory.keys";
 import mediaKeys from "./media.keys";
 import orderKeys from "./order.keys";
 import partnerKeys from "./partner.keys";
 import partnerShopKeys from "./partnerShop.keys";
 import productKeys from "./product.keys";
+import purchaseKeys from "./purchase.keys";
 import referralKeys from "./referral.keys";
 import repairKeys from "./repairs.keys";
 import sellsKeys from "./sells.keys";
 import shippingKeys from "./shipping.keys";
+import supplierKeys from "./supplier.keys";
 import userKeys from "./user.keys";
 
 const ApiKeys = {
@@ -42,6 +47,11 @@ const ApiKeys = {
   ...repairKeys,
   ...sellsKeys,
   ...shippingKeys,
+  ...supplierKeys,
+  ...purchaseKeys,
+  ...inventoryKeys,
+  ...accountingKeys,
+  ...dashboardKeys,
 };
 
 export default ApiKeys;

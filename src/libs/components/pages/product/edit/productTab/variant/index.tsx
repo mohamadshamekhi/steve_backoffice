@@ -4,8 +4,10 @@ import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
 import { DeleteModal } from 'libs/components/common';
 import ContentWrapper from 'libs/components/common/contentWrapper/ContentWrapper';
+import { STOCK_MODE_CONFIG } from 'libs/constants/warehouse/warehouse.constants';
 import { useModal } from 'libs/hooks/modal/useModal';
-import { Button, Table } from 'libs/ui';
+import { StockMode } from 'libs/models/warehouse.model';
+import { Badge, Button, Table } from 'libs/ui';
 import { Dropdown } from 'libs/ui/dropdown/Dropdown';
 import { Case, Switch } from 'libs/utilities';
 import { useState } from 'react';
@@ -26,6 +28,12 @@ interface VariantModel {
     quantity: number;
     warranty: string;
     variant_attribute: VariantAttribute[];
+    stock_mode?: StockMode;
+    allow_backorder?: boolean;
+    backorder_limit?: number | null;
+    supplier_id?: string;
+    supply_cost?: number;
+    avg_cost?: number;
 }
 
 interface ActionCellProps {
@@ -42,6 +50,8 @@ const ProductVariant = ({ id }: { id: string }) => {
         data: product,
         mutate
     } = useSWR(ApiKeys.GET_PRODUCT(id), (url: string) => fetcher(url, 'dashboard', 'GET'));
+
+    const isService = product?.data?.product?.kind === 'service';
 
     const { openModal: insertModal, isOpen: insertIsOpen, closeModal: insertCloseModal } = useModal();
 
@@ -90,19 +100,20 @@ const ProductVariant = ({ id }: { id: string }) => {
                     >
                         ویرایش
                     </Dropdown.Item>
-                    <Dropdown.Item
-                        tag='button'
-                        onItemClick={() => {
-                            console.log(454546);
-                            closeDropdown();
-                            openModal();
-                            setModalType('delete');
-                            console.log(333);
-                        }}
-                        className='text-red-500 hover:bg-red-100 hover:text-red-500'
-                    >
-                        حذف
-                    </Dropdown.Item>
+                    {/* واریانت خدمت را بک‌اند اجازه‌ی حذف نمی‌دهد (product.service_variant_not_deletable) */}
+                    {!isService && (
+                        <Dropdown.Item
+                            tag='button'
+                            onItemClick={() => {
+                                closeDropdown();
+                                openModal();
+                                setModalType('delete');
+                            }}
+                            className='text-red-500 hover:bg-red-100 hover:text-red-500'
+                        >
+                            حذف
+                        </Dropdown.Item>
+                    )}
                 </Dropdown>
 
                 <Switch>
@@ -114,6 +125,7 @@ const ProductVariant = ({ id }: { id: string }) => {
                             onClose={closeModal}
                             isOpen={isOpen}
                             id={id}
+                            isService={isService}
                         />
                     </Case>
 
@@ -203,14 +215,23 @@ const ProductVariant = ({ id }: { id: string }) => {
             header: 'تعداد',
             enableResizing: true,
             filterFn: 'includesString',
-            enableSorting: true
+            enableSorting: true,
+            cell: ({ row }) => (row.original.stock_mode === 'tracked' ? row.original.quantity : '-')
+        },
+        {
+            accessorKey: 'stock_mode',
+            header: 'حالت موجودی',
+            enableSorting: false,
+            cell: ({ row }) => {
+                const mode = row.original.stock_mode ?? 'tracked';
+                const config = STOCK_MODE_CONFIG[mode];
+                return <Badge color={config?.color ?? 'light'}>{config?.label ?? mode}</Badge>;
+            }
         },
         {
             id: 'actions',
             header: 'عملیات',
             cell: ({ row }) => {
-                const variantKeys = row?.original?.variant_attribute.map((item) => item.id)[0];
-                console.log(variantKeys, 'variantKeys');
                 return (
                     <ActionCell
                         data={row.original}
@@ -233,13 +254,22 @@ const ProductVariant = ({ id }: { id: string }) => {
         <ContentWrapper
             title='لیست نوع محصول'
             extra={
-                // insertModalHandler(id)}
-                // TODO : fix them
-                <Button size='sm' onClick={() => insertModalHandler()}>
-                    درج نوع محصول +
-                </Button>
+                // خدمات فقط یک واریانت دارند و بک‌اند افزودن واریانت جدید را رد می‌کند
+                // (product.service_single_variant)
+                isService ? undefined : (
+                    <Button size='sm' onClick={() => insertModalHandler()}>
+                        درج نوع محصول +
+                    </Button>
+                )
             }
         >
+            {isService && (
+                <p className='mb-3 text-sm text-gray-500 dark:text-gray-400'>
+                    خدمات فقط یک واریانت دارند و امکان افزودن یا حذف واریانت برایشان وجود ندارد. برای تغییر قیمت، از تب
+                    «مشخصات محصول» استفاده کنید.
+                </p>
+            )}
+
             <div className='relative'>
                 <Table<VariantModel>
                     headerClass='text-nowrap'
@@ -249,7 +279,13 @@ const ProductVariant = ({ id }: { id: string }) => {
                 />
             </div>
 
-            <AddVariant id={id} mutate={mutate} onClose={insertCloseModal} isOpen={insertIsOpen} />
+            <AddVariant
+                id={id}
+                mutate={mutate}
+                onClose={insertCloseModal}
+                isOpen={insertIsOpen}
+                isService={isService}
+            />
         </ContentWrapper>
     );
 };

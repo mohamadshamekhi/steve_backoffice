@@ -4,6 +4,7 @@ import { signInVerifyAction } from 'app/_actions/auth.actions';
 import { useFormik } from 'formik';
 import { VerifySignInModel } from 'libs/models';
 import { Button } from 'libs/ui';
+import { toEnglishDigits } from 'libs/utilities';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
 import { otpSchema } from 'libs/validator/schemas';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -63,7 +64,7 @@ const VerifyForm = () => {
                         <Fieldset name='code' touched={formik.touched} errors={formik.errors} className='w-full'>
                             <OTPInput
                                 value={formik.values.code}
-                                onChange={(val) => formik.setFieldValue('code', val)}
+                                onChange={(val) => formik.setFieldValue('code', toEnglishDigits(val))}
                                 numInputs={5}
                                 renderSeparator={<span>-</span>}
                                 shouldAutoFocus

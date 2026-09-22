@@ -16,6 +16,7 @@ interface Options {
 interface FetchError {
     status: number;
     message: string;
+    meta?: any;
 }
 
 type method = 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH';
@@ -98,10 +99,11 @@ const fetcher = async (fetcherKey: string, location: LocationPath, method?: meth
                 message: response?.statusText || 'مشکلی پیش امده'
             };
             if (typeof window !== 'undefined') {
-                const { message } = await response.json();
+                const { message, meta } = await response.json();
                 toast.error(message, {
                     toastId: message
                 });
+                error.meta = meta;
             }
             return error;
         }

@@ -3,6 +3,8 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { fetcher } from "libs/api";
 import ApiKeys from "libs/api/keys";
+import { InvoiceModal } from "libs/components/common";
+import { InvoiceData } from "libs/components/common/invoice/invoice.types";
 import ContentWrapper from "libs/components/common/contentWrapper/ContentWrapper";
 import Pagination from "libs/components/common/Pagination";
 import { Badge, Table } from "libs/ui";
@@ -19,6 +21,7 @@ interface OrderItem {
   ProductName: string;
   VariantAttributes: { key: string; value: string; label: string }[];
   PriceAtTime: number;
+  DiscountAmount?: number;
 }
 
 interface ShippingAddress {
@@ -63,6 +66,11 @@ interface OrderProps {
   subtotal_amount: number;
   shipping_amount: number;
   final_amount: number;
+  applied_discounts: { discount_id: string; discount_code?: string; amount: number }[];
+  /** کل تخفیف فاکتور (کد تخفیف + کمپین + تخفیف دستی) */
+  total_discount_amount?: number;
+  /** تخفیف کل فاکتور حضوری */
+  manual_discount?: number;
   created_at: string;
   updated_at: string;
 }
@@ -102,6 +110,33 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+const isInStore = (o: OrderProps) =>
+  !!o.payments?.some((p) => p.gateway === "in_person");
+
+const ChannelBadge = ({ inStore }: { inStore: boolean }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
+      inStore
+        ? "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20"
+        : "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:ring-sky-500/20"
+    }`}
+  >
+    {inStore ? (
+      <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l1.5-5h15L21 9" />
+        <path d="M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z" />
+        <path d="M5 13v7h14v-7" />
+      </svg>
+    ) : (
+      <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+      </svg>
+    )}
+    {inStore ? "حضوری" : "آنلاین"}
+  </span>
+);
+
 const orderStatusOptions = Object.entries(statusConfig).map(
   ([value, { label }]) => ({ value, label })
 );
@@ -109,13 +144,49 @@ const orderStatusOptions = Object.entries(statusConfig).map(
 const List: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderProps | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<InvoiceData | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const buildInvoice = (o: OrderProps): InvoiceData => {
+    const hasInPersonPayment = isInStore(o);
+    return {
+      orderId: o.id,
+      createdAt: o.created_at,
+      type: hasInPersonPayment ? "in_person" : "online",
+      customer: { name: o.user_name, phone: o.user_phone_number },
+      address: hasInPersonPayment ? undefined : o.shipping_address,
+      shippingName: o.shipping?.name,
+      items: o.items.map((item) => ({
+        name: item.ProductName,
+        variant: item.VariantAttributes?.map((a) => a.label).join("، "),
+        quantity: item.Quantity,
+        unitPrice: item.PriceAtTime,
+        discount: item.DiscountAmount || undefined,
+        totalPrice: item.PriceAtTime * item.Quantity - (item.DiscountAmount || 0),
+      })),
+      subtotal: o.subtotal_amount,
+      shippingCost: o.shipping_amount || o.shipping?.cost,
+      discount: o.total_discount_amount || undefined,
+      discountCode:
+        o.applied_discounts
+          ?.map((d) => d.discount_code)
+          .filter(Boolean)
+          .join("، ") || undefined,
+      total: o.final_amount,
+      advancePaid: o.payments
+        ?.filter((p) => p.status === "successful")
+        .reduce((sum, p) => sum + p.amount, 0),
+      paymentMethod: hasInPersonPayment
+        ? "نقدی / حضوری"
+        : paymentStatusConfig[o.payments?.[0]?.status]?.label,
+    };
+  };
 
   const limit = 10;
 
   const { data, isLoading, mutate } = useSWR(
-    ApiKeys.GET_ALL_ORDER,
-    (url: string) => fetcher(url, "dashboard", "GET")
+    [ApiKeys.GET_ALL_ORDER(page, limit)],
+    ([url]: [string]) => fetcher(url, "dashboard", "GET")
   );
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -145,9 +216,125 @@ const List: React.FC = () => {
     {
       accessorKey: "id",
       header: "#",
-      cell: ({ row }) => row.index + 1,
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-gray-800 dark:text-white/90">
+            {((page - 1) * limit + row.index + 1).toLocaleString("fa-IR")}
+          </span>
+          <span dir="ltr" className="font-mono text-[11px] text-gray-400">
+            #{row.original.id.slice(-6).toUpperCase()}
+          </span>
+        </div>
+      ),
       enableSorting: true,
-      maxSize: 50,
+      maxSize: 70,
+    },
+    {
+      id: "channel",
+      header: "کانال فروش",
+      accessorFn: (o) => (isInStore(o) ? "in_person" : "online"),
+      cell: ({ row }) => <ChannelBadge inStore={isInStore(row.original)} />,
+    },
+    {
+      accessorKey: "user_name",
+      header: "مشتری",
+      enableResizing: true,
+      filterFn: "includesString",
+      enableSorting: true,
+      cell: ({ row }) => {
+        const name = row.original.user_name;
+        return (
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+            >
+              {name ? name.trim().charAt(0).toUpperCase() : "?"}
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span
+                className={
+                  name
+                    ? "truncate text-sm font-medium text-gray-800 dark:text-white/90"
+                    : "text-sm text-gray-400"
+                }
+              >
+                {name || "بدون نام"}
+              </span>
+              <span dir="ltr" className="text-xs text-gray-500 [text-align:right]">
+                {row.original.user_phone_number}
+              </span>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "items",
+      header: "محصولات",
+      cell: ({ row }) => {
+        const items = row.original.items ?? [];
+        const totalQuantity = items.reduce((sum, item) => sum + item.Quantity, 0);
+        if (!items.length)
+          return <span className="text-xs text-gray-400">بدون کالا</span>;
+        return (
+          <div className="flex max-w-[220px] flex-col gap-1">
+            <span className="line-clamp-1 text-sm text-gray-700 dark:text-gray-300">
+              {items[0].ProductName}
+            </span>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span>{totalQuantity.toLocaleString("fa-IR")} کالا</span>
+              {items.length > 1 && (
+                <span className="rounded-full bg-gray-100 px-1.5 py-px text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                  +{(items.length - 1).toLocaleString("fa-IR")} قلم دیگر
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "shipping_address",
+      header: "ارسال",
+      cell: ({ row }) => {
+        const o = row.original;
+        if (isInStore(o))
+          return <span className="text-sm text-gray-500">تحویل در فروشگاه</span>;
+        const place = [o.shipping_address?.city, o.shipping_address?.province]
+          .filter(Boolean)
+          .join("، ");
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {place || <span className="text-gray-400">بدون آدرس</span>}
+            </span>
+            {o.shipping?.name && (
+              <span className="text-xs text-gray-500">{o.shipping.name}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "final_amount",
+      header: "مبلغ",
+      cell: ({ row }) => {
+        const hasDiscount =
+          row.original.final_amount < row.original.subtotal_amount;
+        return (
+          <div className="flex flex-col gap-0.5 whitespace-nowrap">
+            <span className="text-sm font-semibold text-gray-800 tabular-nums dark:text-white/90">
+              {formatPrice(row.original.final_amount)}
+            </span>
+            {hasDiscount && (
+              <span className="text-xs text-gray-400 line-through tabular-nums">
+                {formatPrice(row.original.subtotal_amount)}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "status",
@@ -162,99 +349,53 @@ const List: React.FC = () => {
       },
     },
     {
-      accessorKey: "user_name",
-      header: "مشتری",
-      enableResizing: true,
-      filterFn: "includesString",
-      enableSorting: true,
-      cell: ({ row }) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-medium">
-            {row.original.user_name || (
-              <span className="text-gray-400">بدون نام</span>
-            )}
-          </span>
-          <span dir="ltr" className="text-xs text-gray-500">
-            {row.original.user_phone_number}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "items",
-      header: "محصولات",
-      cell: ({ row }) => {
-        const items = row.original.items;
-        const totalQuantity = items.reduce(
-          (sum, item) => sum + item.Quantity,
-          0
-        );
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm">{totalQuantity} کالا</span>
-            <span className="line-clamp-1 text-xs text-gray-500">
-              {items[0]?.ProductName}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "shipping_address",
-      header: "آدرس",
-      cell: ({ row }) => {
-        const address = row.original.shipping_address;
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="text-sm">
-              {address.city}، {address.province}
-            </span>
-            <span className="text-xs text-gray-500">
-              {row.original.shipping?.name}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "final_amount",
-      header: "مبلغ",
-      cell: ({ row }) => {
-        const hasDiscount =
-          row.original.final_amount < row.original.subtotal_amount;
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium text-green-600">
-              {formatPrice(row.original.final_amount)}
-            </span>
-            {hasDiscount && (
-              <span className="text-xs text-gray-400 line-through">
-                {formatPrice(row.original.subtotal_amount)}
-              </span>
-            )}
-          </div>
-        );
-      },
-    },
-    {
       accessorKey: "created_at",
       header: "تاریخ",
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-600">
-          {formatDate(row.original.created_at)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const d = new Date(row.original.created_at);
+        return (
+          <div className="flex flex-col gap-0.5 whitespace-nowrap">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {d.toLocaleDateString("fa-IR", { month: "long", day: "numeric", year: "numeric" })}
+            </span>
+            <span className="text-xs text-gray-400">
+              {d.toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+        );
+      },
     },
     {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <button
-          onClick={() => setSelectedOrder(row.original)}
-          className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-        >
-          جزئیات
-        </button>
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            title="جزئیات سفارش"
+            aria-label="جزئیات سفارش"
+            onClick={() => setSelectedOrder(row.original)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+          >
+            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            title="فاکتور"
+            aria-label="فاکتور"
+            onClick={() => setInvoiceOrder(buildInvoice(row.original))}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-brand-500/20 dark:bg-brand-500/15 dark:text-brand-400"
+          >
+            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9V3h12v6" />
+              <rect x="3" y="9" width="18" height="8" rx="2" />
+              <path d="M6 14h12v7H6z" />
+            </svg>
+          </button>
+        </div>
       ),
     },
   ];
@@ -281,7 +422,17 @@ const List: React.FC = () => {
         {selectedOrder && (
           <div className="mt-8 space-y-6">
             <div className="flex items-center justify-between border-b pb-4">
-              <h2 className="text-xl font-bold">جزئیات سفارش</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold">جزئیات سفارش</h2>
+                <ChannelBadge inStore={isInStore(selectedOrder)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setInvoiceOrder(buildInvoice(selectedOrder))}
+                  className="rounded-lg bg-brand-50 px-3 py-1.5 text-sm text-brand-600 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-400"
+                >
+                  چاپ فاکتور
+                </button>
               <select
                 value={selectedOrder.status}
                 onChange={(e) =>
@@ -296,6 +447,7 @@ const List: React.FC = () => {
                   </option>
                 ))}
               </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -478,6 +630,12 @@ const List: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      <InvoiceModal
+        isOpen={!!invoiceOrder}
+        onClose={() => setInvoiceOrder(null)}
+        data={invoiceOrder}
+      />
     </ContentWrapper>
   );
 };
