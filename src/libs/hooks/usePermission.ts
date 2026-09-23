@@ -1,11 +1,14 @@
 'use client';
 
-import { useACLStore } from 'libs/state/stores/acl';
+import { isSuperAdmin, useACLStore } from 'libs/state/stores/acl';
 
 type Mode = 'any' | 'all';
 
 export function usePermission(permission: string | string[], mode: Mode = 'any'): boolean {
     const permissions = useACLStore((state) => state.permissions) ?? [];
+    const superAdmin = useACLStore((state) => isSuperAdmin(state.roles));
+
+    if (superAdmin) return true;
 
     if (typeof permission === 'string') {
         return permissions.includes(permission);
@@ -20,6 +23,8 @@ export function usePermission(permission: string | string[], mode: Mode = 'any')
 
 export function useRole(role: string | string[]): boolean {
     const roles = useACLStore((state) => state.roles) ?? [];
+
+    if (isSuperAdmin(roles)) return true;
 
     if (typeof role === 'string') {
         return roles.includes(role);

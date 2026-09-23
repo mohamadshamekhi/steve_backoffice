@@ -2,7 +2,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
-import { DeleteModal } from 'libs/components/common';
+import { DeleteModal, QrLabelModal } from 'libs/components/common';
 import ContentWrapper from 'libs/components/common/contentWrapper/ContentWrapper';
 import { STOCK_MODE_CONFIG } from 'libs/constants/warehouse/warehouse.constants';
 import { useModal } from 'libs/hooks/modal/useModal';
@@ -10,7 +10,7 @@ import { StockMode } from 'libs/models/warehouse.model';
 import { Badge, Button, Table } from 'libs/ui';
 import { Dropdown } from 'libs/ui/dropdown/Dropdown';
 import { Case, Switch } from 'libs/utilities';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import useSWR from 'swr';
 import AddVariant from './addvariant';
@@ -36,6 +36,8 @@ interface VariantModel {
     avg_cost?: number;
 }
 
+const STOREFRONT_URL = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? 'https://stevemobile.com';
+
 interface ActionCellProps {
     data: VariantModel;
     variantKeys: string;
@@ -52,6 +54,21 @@ const ProductVariant = ({ id }: { id: string }) => {
     } = useSWR(ApiKeys.GET_PRODUCT(id), (url: string) => fetcher(url, 'dashboard', 'GET'));
 
     const isService = product?.data?.product?.kind === 'service';
+    const productName: string = product?.data?.product?.name ?? '';
+
+    const [qrVariant, setQrVariant] = useState<VariantModel | null>(null);
+    const variantLabel = (v: VariantModel) => v.variant_attribute?.map((a) => a.label).join(' / ') ?? '';
+
+    // add-variant شناسه‌ی واریانت جدید را برنمی‌گرداند؛ با مقایسه‌ی لیست قبل و بعد پیدایش می‌کنیم تا QR آن نمایش داده شود
+    const prevVariantIds = useRef<Set<string>>(new Set());
+    const mutateAfterAdd = async () => {
+        prevVariantIds.current = new Set((product?.data?.product?.variants ?? []).map((v: VariantModel) => v.id));
+        const res = await mutate();
+        const added = (res?.data?.product?.variants ?? []).find(
+            (v: VariantModel) => !prevVariantIds.current.has(v.id)
+        );
+        if (added) setQrVariant(added);
+    };
 
     const { openModal: insertModal, isOpen: insertIsOpen, closeModal: insertCloseModal } = useModal();
 
@@ -99,6 +116,15 @@ const ProductVariant = ({ id }: { id: string }) => {
                         }}
                     >
                         ویرایش
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                        tag='button'
+                        onItemClick={() => {
+                            closeDropdown();
+                            setQrVariant(data);
+                        }}
+                    >
+                        چاپ لیبل QR
                     </Dropdown.Item>
                     {/* واریانت خدمت را بک‌اند اجازه‌ی حذف نمی‌دهد (product.service_variant_not_deletable) */}
                     {!isService && (
@@ -281,10 +307,19 @@ const ProductVariant = ({ id }: { id: string }) => {
 
             <AddVariant
                 id={id}
-                mutate={mutate}
+                mutate={mutateAfterAdd}
                 onClose={insertCloseModal}
                 isOpen={insertIsOpen}
                 isService={isService}
+            />
+
+            <QrLabelModal
+                isOpen={!!qrVariant}
+                onClose={() => setQrVariant(null)}
+                value={qrVariant ? `${STOREFRONT_URL}/q/${qrVariant.id}` : undefined}
+                caption={productName}
+                subCaption={qrVariant && !isService ? variantLabel(qrVariant) || undefined : undefined}
+                fileName={`qr-${qrVariant?.id ?? ''}`}
             />
         </ContentWrapper>
     );

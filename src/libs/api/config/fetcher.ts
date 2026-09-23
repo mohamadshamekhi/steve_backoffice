@@ -76,7 +76,9 @@ const fetcher = async (fetcherKey: string, location: LocationPath, method?: meth
 
         // add query params to url
         if (options && options.params) {
-            constructUrl.push(`?${stringify(options.params)}`);
+            // بعضی کلیدها خودشان query دارند (مثل GET_ALL_ORDER)؛ در آن صورت با & ادامه بده نه ? دوم
+            const query = stringify(options.params);
+            if (query) constructUrl.push(`${fetcherKey.includes('?') ? '&' : '?'}${query}`);
         }
 
         console.log(`${method} -> ${location} -> ${requiredAuth ? '🔒' : ''} ${constructUrl.join('')} `);

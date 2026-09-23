@@ -36,7 +36,7 @@ export const navItems: NavItem[] = [
     icon: <OrderIcon />,
     name: "سفارشات",
     subItems: [
-      { name: "لیست سفارشات", path: ROUTES.Orders, pro: false },
+      { name: "لیست سفارشات", path: ROUTES.Orders, pro: false, permission: "order:list" },
       { name: "ثبت خرید حضوری", path: ROUTES.InStoreSale, pro: false },
     ],
   },

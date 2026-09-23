@@ -10,7 +10,7 @@ import HorizontalDotsIcon from 'libs/components/icons/HorizontalDotsIcon';
 import useMediaQuery from 'libs/hooks/mediaQuery/useMediaQuery';
 import { SCOPED_ONLY_ROLES } from 'libs/components/common/ScopedRoleGuard';
 import ROUTES from 'libs/constants/routes/routes.constants';
-import { useACLStore } from 'libs/state/stores/acl';
+import { isSuperAdmin, useACLStore } from 'libs/state/stores/acl';
 import { useSidebarStore } from 'libs/state/stores/sidebar';
 import { Link } from 'libs/ui';
 import Image from 'next/image';
@@ -38,9 +38,10 @@ const Sidebar: React.FC = () => {
         const isScopedOnly =
             userRoles.length > 0 && userRoles.every((role) => SCOPED_ONLY_ROLES.includes(role));
 
-        const hasPermission = (permission?: string) => !!permission && keys.includes(permission);
+        const superAdmin = isSuperAdmin(userRoles);
+        const hasPermission = (permission?: string) => !!permission && (superAdmin || keys.includes(permission));
         const hasAnyRole = (itemRoles?: string[]) =>
-            !!itemRoles && itemRoles.some((role) => userRoles.includes(role));
+            !!itemRoles && (superAdmin || itemRoles.some((role) => userRoles.includes(role)));
 
         // An item can be gated by `permission`, `roles`, or both. When both are set,
         // holding EITHER grants access. Items scoped entirely to "scoped-only" roles

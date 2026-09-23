@@ -3,77 +3,26 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { fetcher } from "libs/api";
 import ApiKeys from "libs/api/keys";
-import { InvoiceModal } from "libs/components/common";
+import { InvoiceModal, QrLabelModal } from "libs/components/common";
 import { InvoiceData } from "libs/components/common/invoice/invoice.types";
 import ContentWrapper from "libs/components/common/contentWrapper/ContentWrapper";
 import Pagination from "libs/components/common/Pagination";
+import { toIsoDate } from "libs/constants/warehouse/warehouse.constants";
 import { Badge, Table } from "libs/ui";
 import { BadgeColor } from "libs/ui/badge/badge.types";
+import { usePermission } from "libs/hooks/usePermission";
 import { Modal } from "libs/ui/modal";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import useSWR from "swr";
-
-interface OrderItem {
-  ProductID: string;
-  VariantID: string;
-  Quantity: number;
-  ProductName: string;
-  VariantAttributes: { key: string; value: string; label: string }[];
-  PriceAtTime: number;
-  DiscountAmount?: number;
-}
-
-interface ShippingAddress {
-  title: string;
-  province: string;
-  city: string;
-  street: string;
-  postcode: string;
-}
-
-interface Shipping {
-  name: string;
-  description: string;
-  cost: number;
-}
-
-interface Payment {
-  id: string;
-  user_id: string;
-  order_id: string;
-  amount: number;
-  gateway: string;
-  status: string;
-  gateway_transaction_id: string;
-  tracking_code?: string;
-  masked_card_number?: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface OrderProps {
-  id: string;
-  status: string;
-  user_id: string;
-  user_name: string;
-  user_phone_number: string;
-  items: OrderItem[];
-  shipping_address: ShippingAddress;
-  shipping: Shipping;
-  payments: Payment[];
-  subtotal_amount: number;
-  shipping_amount: number;
-  final_amount: number;
-  applied_discounts: { discount_id: string; discount_code?: string; amount: number }[];
-  /** کل تخفیف فاکتور (کد تخفیف + کمپین + تخفیف دستی) */
-  total_discount_amount?: number;
-  /** تخفیف کل فاکتور حضوری */
-  manual_discount?: number;
-  created_at: string;
-  updated_at: string;
-}
+import EditOrderModal from "../edit";
+import EditHistory from "../edit/EditHistory";
+import { ORDER_EDIT, OrderProps, formatDate, formatPrice } from "../order.types";
+import OrderFilterDrawer, {
+  countActiveFilters,
+  EMPTY_ORDER_FILTERS,
+  OrderFilters,
+} from "./OrderFilterDrawer";
 
 const statusConfig: Record<string, { label: string; color: BadgeColor }> = {
   pending_payment: { label: "در انتظار پرداخت", color: "warning" },
@@ -93,21 +42,6 @@ const paymentStatusConfig: Record<
   failed: { label: "ناموفق", color: "error" },
   refunded: { label: "مسترد شده", color: "dark" },
   in_person: { label: "خرید حضوری", color: "light" },
-};
-
-const formatPrice = (price: number): string => {
-  return price.toLocaleString("fa-IR") + " تومان";
-};
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("fa-IR", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 };
 
 const isInStore = (o: OrderProps) =>
@@ -137,15 +71,238 @@ const ChannelBadge = ({ inStore }: { inStore: boolean }) => (
   </span>
 );
 
+const EditedTag = () => (
+  <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-medium text-warning-700 ring-1 ring-inset ring-warning-200 dark:bg-warning-500/10 dark:text-warning-400 dark:ring-warning-500/20">
+    <svg aria-hidden width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+    ویرایش‌شده
+  </span>
+);
+
+const svg = (d: React.ReactNode) => (
+  <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {d}
+  </svg>
+);
+
+const ICONS = {
+  view: svg(<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>),
+  edit: svg(<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />),
+  qr: svg(<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></>),
+  print: svg(<><path d="M6 9V3h12v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M6 14h12v7H6z" /></>),
+};
+
+type RowAction = { label: string; icon: React.ReactNode; onClick: () => void };
+
+// منو با position: fixed باز می‌شود تا overflow جدول آن را نبرد
+const RowActions = ({ label, actions }: { label: string; actions: RowAction[] }) => {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_W = 176;
+
+  useEffect(() => {
+    if (!pos) return;
+    const close = () => setPos(null);
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !btnRef.current?.contains(t)) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        close();
+        btnRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    menuRef.current?.querySelector("button")?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [pos]);
+
+  const toggle = () => {
+    if (pos) return setPos(null);
+    const r = btnRef.current!.getBoundingClientRect();
+    const menuH = actions.length * 40 + 8;
+    const top = r.bottom + 4 + menuH > window.innerHeight ? r.top - 4 - menuH : r.bottom + 4;
+    setPos({ top, left: Math.max(8, r.left) });
+  };
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={btnRef}
+        type="button"
+        title="عملیات"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={!!pos}
+        onClick={toggle}
+        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+          pos
+            ? "border-brand-200 bg-brand-50 text-brand-600 dark:border-brand-500/30 dark:bg-brand-500/15 dark:text-brand-400"
+            : "border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+        }`}
+      >
+        <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="12" cy="19" r="1.8" />
+        </svg>
+      </button>
+      {pos && (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ top: pos.top, left: pos.left, width: MENU_W }}
+          className="shadow-theme-lg fixed z-50 rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
+        >
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setPos(null);
+                a.onClick();
+              }}
+              className="flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-sm text-gray-700 transition-colors hover:bg-gray-100 focus-visible:bg-gray-100 focus-visible:outline-none dark:text-gray-300 dark:hover:bg-white/[0.05] dark:focus-visible:bg-white/[0.05]"
+            >
+              <span className="text-gray-400">{a.icon}</span>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const orderStatusOptions = Object.entries(statusConfig).map(
   ([value, { label }]) => ({ value, label })
 );
 
+const PURCHASE_TYPE_OPTIONS = [
+  { value: "", label: "همه" },
+  { value: "online", label: "آنلاین" },
+  { value: "in_person", label: "حضوری" },
+];
+
+type SegmentedItem = { value: string; label: string; dot?: string };
+
+const SegmentedTabs = ({
+  label,
+  items,
+  value,
+  onChange,
+  className = "",
+}: {
+  label: string;
+  items: SegmentedItem[];
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) => (
+  <div
+    role="tablist"
+    aria-label={label}
+    className={`flex gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 [scrollbar-width:thin] dark:bg-gray-900 ${className}`}
+  >
+    {items.map((item) => {
+      const active = value === item.value;
+      return (
+        <button
+          key={item.value || "all"}
+          type="button"
+          role="tab"
+          aria-selected={active}
+          onClick={() => onChange(item.value)}
+          className={`inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+            active
+              ? "shadow-theme-xs bg-white text-gray-900 dark:bg-white/[0.06] dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          }`}
+        >
+          {item.dot && <span aria-hidden className={`h-2 w-2 rounded-full ${item.dot}`} />}
+          {item.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
 const List: React.FC = () => {
   const [page, setPage] = useState(1);
+  const [purchaseType, setPurchaseType] = useState("");
+  const [filters, setFilters] = useState<OrderFilters>(EMPTY_ORDER_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const activeFilterCount = countActiveFilters(filters);
+
+  const filterParams: Record<string, string> = {
+    ...(purchaseType && { purchase_type: purchaseType }),
+    ...(filters.statuses.length && { status: filters.statuses.join(",") }),
+    ...(filters.order_id.trim() && { order_id: filters.order_id.trim() }),
+    ...(filters.phone.trim() && { phone: filters.phone.trim() }),
+    ...(filters.is_partner_order && { is_partner_order: filters.is_partner_order }),
+    ...(filters.from && { from: toIsoDate(filters.from.toDate()) }),
+    ...(filters.to && { to: toIsoDate(filters.to.toDate()) }),
+    ...(filters.min_amount && { min_amount: filters.min_amount }),
+    ...(filters.max_amount && { max_amount: filters.max_amount }),
+  };
+
+  const closeFilter = useCallback(() => setFilterOpen(false), []);
+
+  const applyFilters = (next: OrderFilters) => {
+    setFilters(next);
+    setPage(1);
+  };
+
   const [selectedOrder, setSelectedOrder] = useState<OrderProps | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<InvoiceData | null>(null);
+  const [qrOrder, setQrOrder] = useState<OrderProps | null>(null);
+  const [qrImage, setQrImage] = useState("");
+
+  // QR تحویل برای چسباندن روی بسته‌ی سفارش آنلاین؛ مشتری با اسکن آن سفارش را می‌بیند و تحویل را تأیید می‌کند
+  const openDeliveryQr = async (o: OrderProps) => {
+    setQrImage("");
+    setQrOrder(o);
+    try {
+      const res = await fetcher(ApiKeys.GET_ORDER_DELIVERY_QRCODE(o.id), "dashboard", "GET");
+      if (res?.data?.qr_code) setQrImage(res.data.qr_code);
+      else throw new Error();
+    } catch {
+      toast.error("ساخت QR تحویل ناموفق بود");
+      setQrOrder(null);
+    }
+  };
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const canEdit = usePermission(ORDER_EDIT);
+  const [editingOrder, setEditingOrder] = useState<OrderProps | null>(null);
+
+  // endpoint تکی سفارش نداریم؛ نسخه‌ی تازه از لیست با فیلتر order_id گرفته می‌شود و
+  // چون key فرم به updated_at بسته است، فرم با داده‌ی جدید از نو ساخته می‌شود
+  const reloadEditingOrder = async () => {
+    if (!editingOrder) return;
+    const res = await fetcher(ApiKeys.GET_ALL_ORDER(1, 1), "dashboard", "GET", {
+      params: { order_id: editingOrder.id },
+    });
+    const fresh: OrderProps | undefined = res?.data?.orders?.[0];
+    mutate();
+    if (fresh) {
+      setEditingOrder(fresh);
+      setSelectedOrder(fresh);
+    } else {
+      setEditingOrder(null);
+    }
+  };
 
   const buildInvoice = (o: OrderProps): InvoiceData => {
     const hasInPersonPayment = isInStore(o);
@@ -185,8 +342,9 @@ const List: React.FC = () => {
   const limit = 10;
 
   const { data, isLoading, mutate } = useSWR(
-    [ApiKeys.GET_ALL_ORDER(page, limit)],
-    ([url]: [string]) => fetcher(url, "dashboard", "GET")
+    [ApiKeys.GET_ALL_ORDER(page, limit), JSON.stringify(filterParams)],
+    ([url, params]: [string, string]) =>
+      fetcher(url, "dashboard", "GET", { params: JSON.parse(params) })
   );
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -245,12 +403,12 @@ const List: React.FC = () => {
         const name = row.original.user_name;
         return (
           <div className="flex items-center gap-3">
-            <span
+            {/* <span
               aria-hidden
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
             >
               {name ? name.trim().charAt(0).toUpperCase() : "?"}
-            </span>
+            </span> */}
             <div className="flex min-w-0 flex-col gap-0.5">
               <span
                 className={
@@ -345,7 +503,12 @@ const List: React.FC = () => {
           label: status,
           color: "light" as BadgeColor,
         };
-        return <Badge color={config.color}>{config.label}</Badge>;
+        return (
+          <div className="flex flex-col items-start gap-1">
+            <Badge color={config.color}>{config.label}</Badge>
+            {row.original.is_edited && <EditedTag />}
+          </div>
+        );
       },
     },
     {
@@ -368,40 +531,77 @@ const List: React.FC = () => {
     {
       id: "actions",
       header: "",
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            type="button"
-            title="جزئیات سفارش"
-            aria-label="جزئیات سفارش"
-            onClick={() => setSelectedOrder(row.original)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-          >
-            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            title="فاکتور"
-            aria-label="فاکتور"
-            onClick={() => setInvoiceOrder(buildInvoice(row.original))}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-100 bg-brand-50 text-brand-600 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-brand-500/20 dark:bg-brand-500/15 dark:text-brand-400"
-          >
-            <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 9V3h12v6" />
-              <rect x="3" y="9" width="18" height="8" rx="2" />
-              <path d="M6 14h12v7H6z" />
-            </svg>
-          </button>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const o = row.original;
+        return (
+          <RowActions
+            label={`عملیات سفارش ${o.id.slice(-6).toUpperCase()}`}
+            actions={[
+              { label: "جزئیات سفارش", icon: ICONS.view, onClick: () => setSelectedOrder(o) },
+              ...(canEdit ? [{ label: "ویرایش سفارش", icon: ICONS.edit, onClick: () => setEditingOrder(o) }] : []),
+              ...(!isInStore(o) ? [{ label: "QR تحویل", icon: ICONS.qr, onClick: () => openDeliveryQr(o) }] : []),
+              { label: "چاپ فاکتور", icon: ICONS.print, onClick: () => setInvoiceOrder(buildInvoice(o)) },
+            ]}
+          />
+        );
+      },
     },
   ];
 
   return (
     <ContentWrapper title="لیست سفارشات">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs
+          label="نوع خرید"
+          className="max-w-full"
+          value={purchaseType}
+          onChange={(v) => {
+            setPurchaseType(v);
+            setPage(1);
+          }}
+          items={PURCHASE_TYPE_OPTIONS}
+        />
+        <div className="flex items-center gap-2">
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={() => applyFilters(EMPTY_ORDER_FILTERS)}
+              className="h-10 rounded-lg px-3 text-sm text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:hover:bg-red-500/10"
+            >
+              حذف فیلترها
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            aria-haspopup="dialog"
+            className={`flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+              activeFilterCount > 0
+                ? "border-brand-200 bg-brand-50 text-brand-600 dark:border-brand-500/30 dark:bg-brand-500/15 dark:text-brand-400"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+            }`}
+          >
+            <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 5h18M6 12h12M10 19h4" />
+            </svg>
+            فیلترها
+            {activeFilterCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-500 px-1.5 text-xs text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <OrderFilterDrawer
+        isOpen={filterOpen}
+        onClose={closeFilter}
+        value={filters}
+        onApply={applyFilters}
+        statusOptions={orderStatusOptions}
+      />
+
       <div className="relative">
         <Table<OrderProps>
           headerClass="text-nowrap"
@@ -425,8 +625,18 @@ const List: React.FC = () => {
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold">جزئیات سفارش</h2>
                 <ChannelBadge inStore={isInStore(selectedOrder)} />
+                {selectedOrder.is_edited && <EditedTag />}
               </div>
               <div className="flex items-center gap-2">
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingOrder(selectedOrder)}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    ویرایش
+                  </button>
+                )}
                 <button
                   onClick={() => setInvoiceOrder(buildInvoice(selectedOrder))}
                   className="rounded-lg bg-brand-50 px-3 py-1.5 text-sm text-brand-600 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-400"
@@ -503,7 +713,7 @@ const List: React.FC = () => {
                     <div className="flex-1">
                       <p className="font-medium">{item.ProductName}</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {item.VariantAttributes.map((attr, i) => (
+                        {(item.VariantAttributes ?? []).map((attr, i) => (
                           <span
                             key={i}
                             className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700"
@@ -623,6 +833,8 @@ const List: React.FC = () => {
               </div>
             </div>
 
+            <EditHistory edits={selectedOrder.edits} />
+
             <div className="text-xs text-gray-400">
               <p>تاریخ ثبت: {formatDate(selectedOrder.created_at)}</p>
               <p>آخرین بروزرسانی: {formatDate(selectedOrder.updated_at)}</p>
@@ -631,10 +843,30 @@ const List: React.FC = () => {
         )}
       </Modal>
 
+      <EditOrderModal
+        order={editingOrder}
+        onClose={() => setEditingOrder(null)}
+        onSaved={() => {
+          setEditingOrder(null);
+          setSelectedOrder(null);
+          mutate();
+        }}
+        onConflict={reloadEditingOrder}
+      />
+
       <InvoiceModal
         isOpen={!!invoiceOrder}
         onClose={() => setInvoiceOrder(null)}
         data={invoiceOrder}
+      />
+
+      <QrLabelModal
+        isOpen={!!qrOrder}
+        onClose={() => setQrOrder(null)}
+        image={qrImage}
+        loading={!qrImage}
+        caption={qrOrder ? `سفارش #${qrOrder.id.slice(-8)}` : ""}
+        fileName={`delivery-qr-${qrOrder?.id ?? ""}`}
       />
     </ContentWrapper>
   );

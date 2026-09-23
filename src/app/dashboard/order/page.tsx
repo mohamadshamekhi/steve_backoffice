@@ -1,4 +1,4 @@
-import { BreadCrumbs } from 'libs/components/common';
+import { BreadCrumbs, PermissionGate } from 'libs/components/common';
 import { List } from 'libs/components/pages/order';
 
 const page = () => {
@@ -6,7 +6,9 @@ const page = () => {
     return (
         <>
             <BreadCrumbs links={links} containerClass='mb-5' />
-            <List />
+            <PermissionGate permission='order:list' fallback={<p className='text-sm text-gray-400'>دسترسی لازم را ندارید.</p>}>
+                <List />
+            </PermissionGate>
         </>
     );
 };

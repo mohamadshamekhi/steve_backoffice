@@ -14,6 +14,7 @@ type PersianDatePickerProps = {
     className?: string;
     calendarPosition?: string;
     showTime?: boolean;
+    placeholder?: string;
 };
 
 const PersianDatePicker = ({
@@ -22,7 +23,8 @@ const PersianDatePicker = ({
     onChange,
     className,
     calendarPosition = 'bottom-right',
-    showTime = false
+    showTime = false,
+    placeholder
 }: PersianDatePickerProps) => {
     const [internalValue, setInternalValue] = useState<Value | undefined>(propValue);
 
@@ -49,6 +51,7 @@ const PersianDatePicker = ({
             locale={persian_fa}
             format={showTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'}
             calendarPosition={calendarPosition}
+            placeholder={placeholder}
             inputClass={`h-11 text-sm px-2 rounded-lg border border-gray-300 w-full ${className || ''}`}
             plugins={showTime ? [<TimePicker position='bottom' hideSeconds />] : []}
         />
