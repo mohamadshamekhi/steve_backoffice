@@ -10,6 +10,7 @@ interface AsyncMultiSelectProps {
     value: string[];
     error?: boolean;
     onChange: (values: string[]) => void;
+    onChangeOptions?: (opts: Option[]) => void;
     loadOptions: (inputValue: string) => Promise<Option[]>;
     placeholder?: string;
     defaultOptions?: Option[] | boolean;
@@ -89,6 +90,7 @@ const AsyncMultiSelect: React.FC<AsyncMultiSelectProps> = ({
     value,
     error,
     onChange,
+    onChangeOptions,
     loadOptions,
     placeholder = 'لطفا انتخاب کنید',
     defaultOptions = true,
@@ -104,6 +106,7 @@ const AsyncMultiSelect: React.FC<AsyncMultiSelectProps> = ({
         const opts = selected as Option[];
         setSelectedOptions(opts);
         onChange(opts.map((opt) => opt.value));
+        onChangeOptions?.(opts);
     };
 
     return (

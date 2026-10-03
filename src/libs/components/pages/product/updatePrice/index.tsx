@@ -15,6 +15,7 @@ const TARGET_CATEGORY_NAMES = ["گوشی موبایل", "تبلت"];
 interface CategoryModel {
   id: string;
   name: string;
+  parent_id: string | null;
 }
 
 interface VariantAttribute {

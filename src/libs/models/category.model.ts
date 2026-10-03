@@ -5,5 +5,5 @@ export interface CategoryModel {
     media_id: string;
     url: string;
     attribute_set_id: string;
-    parent_id?: string;
+    parent_id: string | null;
 }

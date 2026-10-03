@@ -459,13 +459,13 @@ const InStoreSale = () => {
         }
     };
 
-    const handleItemDiscount = async (item: CartItem, amount: number) => {
+    const handleItemNewPrice = async (item: CartItem, unitPrice: number) => {
         const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
-            await fetcher(ApiKeys.BACKOFFICE_ITEM_DISCOUNT, 'dashboard', 'POST', {
-                body: { user_id: userId, variant_id: item.variant_id, amount }
+            await fetcher(ApiKeys.BACKOFFICE_ITEM_NEW_PRICE, 'dashboard', 'POST', {
+                body: { user_id: userId, variant_id: item.variant_id, unit_price: unitPrice }
             });
             await refreshCart();
         } finally {
@@ -750,12 +750,20 @@ if (initializing) {
                                 <ul className='space-y-3'>
                                     {cart.items.map((item) => {
                                         const lineTotal = item.price_at_time * item.quantity;
-                                        const discountValue =
-                                            rowDiscountDraft[item.variant_id] ?? String(item.manual_discount ?? 0);
-                                        const applyRowDiscount = () => {
-                                            const amount = toAmount(discountValue);
-                                            if (amount === (item.manual_discount ?? 0)) return;
-                                            handleItemDiscount(item, amount);
+                                        const effectiveUnitPrice = Math.round(
+                                            (lineTotal - (item.manual_discount ?? 0)) / item.quantity
+                                        );
+                                        const rawDraft = rowDiscountDraft[item.variant_id];
+                                        const newPriceRaw =
+                                            rawDraft !== undefined ? rawDraft : String(effectiveUnitPrice);
+                                        const newPriceDisplayed = toAmount(newPriceRaw)
+                                            ? toAmount(newPriceRaw).toLocaleString('fa-IR')
+                                            : '';
+                                        const applyNewPrice = () => {
+                                            const newUnitPrice = toAmount(newPriceRaw);
+                                            if (!newUnitPrice) return;
+                                            if (newUnitPrice === effectiveUnitPrice) return;
+                                            handleItemNewPrice(item, newUnitPrice);
                                         };
 
                                         return (
@@ -833,7 +841,15 @@ if (initializing) {
                                                                     </p>
                                                                 )}
                                                                 <p className='mt-0.5 text-xs text-gray-400'>
-                                                                    واحد: {formatPrice(item.price_at_time)}
+                                                                    واحد:{' '}
+                                                                    {item.manual_discount
+                                                                        ? formatPrice(
+                                                                              Math.round(
+                                                                                  (lineTotal - item.manual_discount) /
+                                                                                      item.quantity
+                                                                              )
+                                                                          )
+                                                                        : formatPrice(item.price_at_time)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -878,7 +894,7 @@ if (initializing) {
                                                             htmlFor={`discount-${item.variant_id}`}
                                                             className='text-xs whitespace-nowrap text-gray-500 dark:text-gray-400'
                                                         >
-                                                            تخفیف سطر
+                                                            قیمت جدید
                                                         </label>
                                                         <Input
                                                             id={`discount-${item.variant_id}`}
@@ -886,24 +902,20 @@ if (initializing) {
                                                             inputMode='numeric'
                                                             className='h-11 w-32'
                                                             disabled={loading}
-                                                            value={
-                                                                toAmount(discountValue)
-                                                                    ? toAmount(discountValue).toLocaleString('fa-IR')
-                                                                    : ''
-                                                            }
-                                                            placeholder='۰'
+                                                            value={newPriceDisplayed}
+                                                            placeholder={effectiveUnitPrice.toLocaleString('fa-IR')}
                                                             onChange={(e) =>
                                                                 setRowDiscountDraft((d) => ({
                                                                     ...d,
                                                                     [item.variant_id]: e.target.value
                                                                 }))
                                                             }
-                                                            onKeyDown={(e) => e.key === 'Enter' && applyRowDiscount()}
+                                                            onKeyDown={(e) => e.key === 'Enter' && applyNewPrice()}
                                                         />
                                                         <button
                                                             type='button'
-                                                            onClick={applyRowDiscount}
-                                                            disabled={loading || toAmount(discountValue) === (item.manual_discount ?? 0)}
+                                                            onClick={applyNewPrice}
+                                                            disabled={loading || toAmount(newPriceRaw) === effectiveUnitPrice}
                                                             className='flex h-11 items-center gap-1 rounded-lg bg-brand-500 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40'
                                                         >
                                                             اعمال
@@ -990,9 +1002,16 @@ if (initializing) {
                                     <dd className='text-gray-800 dark:text-white'>{formatPrice(cart.subtotal)}</dd>
                                 </div>
                                 {!!cart.items_manual_discount && (
-                                    <div className='flex items-center justify-between text-green-600'>
-                                        <dt>تخفیف‌های سطری</dt>
-                                        <dd>−{formatPrice(cart.items_manual_discount)}</dd>
+                                    <div
+                                        className={`flex items-center justify-between ${
+                                            cart.items_manual_discount > 0 ? 'text-green-600' : 'text-red-500'
+                                        }`}
+                                    >
+                                        <dt>تعدیل قیمت سطری</dt>
+                                        <dd>
+                                            {cart.items_manual_discount > 0 ? '−' : '+'}
+                                            {formatPrice(Math.abs(cart.items_manual_discount))}
+                                        </dd>
                                     </div>
                                 )}
                                 {!!cart.manual_discount && (
@@ -1084,9 +1103,16 @@ if (initializing) {
                             <span>{formatPrice(cart.subtotal)}</span>
                         </div>
                         {!!cart.items_manual_discount && (
-                            <div className='flex justify-between text-sm text-green-600'>
-                                <span>تخفیف‌های سطری:</span>
-                                <span>−{formatPrice(cart.items_manual_discount)}</span>
+                            <div
+                                className={`flex justify-between text-sm ${
+                                    cart.items_manual_discount > 0 ? 'text-green-600' : 'text-red-500'
+                                }`}
+                            >
+                                <span>تعدیل قیمت سطری:</span>
+                                <span>
+                                    {cart.items_manual_discount > 0 ? '−' : '+'}
+                                    {formatPrice(Math.abs(cart.items_manual_discount))}
+                                </span>
                             </div>
                         )}
                         {!!cart.manual_discount && (

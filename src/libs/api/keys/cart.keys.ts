@@ -9,6 +9,7 @@ const keys = {
     BACKOFFICE_DELETE_ITEM: '/backoffice/cart/delete-item',
     BACKOFFICE_CUSTOM_ITEM: '/backoffice/cart/custom-item',
     BACKOFFICE_ITEM_DISCOUNT: '/backoffice/cart/item-discount',
+    BACKOFFICE_ITEM_NEW_PRICE: '/backoffice/cart/item-new-price',
     BACKOFFICE_CART_DISCOUNT: '/backoffice/cart/discount',
     BACKOFFICE_REGISTER_ORDER: '/backoffice/order/register',
     BACKOFFICE_COMPLETE_ORDER: '/backoffice/order/complete-order',
