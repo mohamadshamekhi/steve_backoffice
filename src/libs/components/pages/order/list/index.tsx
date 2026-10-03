@@ -2,6 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { fetcher } from "libs/api";
+import Image from "next/image";
+import noPic from "../../../../../../public/images/placeholder/no-pic.png";
 import ApiKeys from "libs/api/keys";
 import { InvoiceModal, QrLabelModal } from "libs/components/common";
 import { InvoiceData } from "libs/components/common/invoice/invoice.types";
@@ -620,184 +622,218 @@ const List: React.FC = () => {
 
       <Modal isOpen={!!selectedOrder} onClose={() => setSelectedOrder(null)}>
         {selectedOrder && (
-          <div className="mt-8 space-y-6">
-            <div className="flex items-center justify-between border-b pb-4">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold">جزئیات سفارش</h2>
-                <ChannelBadge inStore={isInStore(selectedOrder)} />
-                {selectedOrder.is_edited && <EditedTag />}
+          <div className="mt-6 space-y-5">
+            {/* ─── Header ─── */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">جزئیات سفارش</h2>
+                  <ChannelBadge inStore={isInStore(selectedOrder)} />
+                  {selectedOrder.is_edited && <EditedTag />}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                  </svg>
+                  <span>ثبت: {formatDate(selectedOrder.created_at)}</span>
+                  {selectedOrder.updated_at !== selectedOrder.created_at && (
+                    <><span>·</span><span>بروز: {formatDate(selectedOrder.updated_at)}</span></>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
+                <select
+                  value={selectedOrder.status}
+                  onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
+                  disabled={updatingStatus}
+                  className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium shadow-sm transition-colors focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  {orderStatusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
                 {canEdit && (
                   <button
                     type="button"
                     onClick={() => setEditingOrder(selectedOrder)}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
+                    <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
                     ویرایش
                   </button>
                 )}
                 <button
                   onClick={() => setInvoiceOrder(buildInvoice(selectedOrder))}
-                  className="rounded-lg bg-brand-50 px-3 py-1.5 text-sm text-brand-600 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-400"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/40 dark:bg-brand-500 dark:hover:bg-brand-600"
                 >
+                  <svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9V3h12v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M6 14h12v7H6z" />
+                  </svg>
                   چاپ فاکتور
                 </button>
-              <select
-                value={selectedOrder.status}
-                onChange={(e) =>
-                  handleStatusChange(selectedOrder.id, e.target.value)
-                }
-                disabled={updatingStatus}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-              >
-                {orderStatusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                <h3 className="mb-3 font-semibold text-gray-700 dark:text-gray-300">
-                  اطلاعات مشتری
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-gray-500">نام:</span>{" "}
-                    {selectedOrder.user_name || "بدون نام"}
-                  </p>
-                  <p>
-                    <span className="text-gray-500">شماره تماس:</span>{" "}
-                    <span dir="ltr">{selectedOrder.user_phone_number}</span>
-                  </p>
+            {/* ─── Customer + Address ─── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-800/60">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                    </svg>
+                  </span>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">اطلاعات مشتری</h3>
                 </div>
+                <dl className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">نام</dt>
+                    <dd className="font-medium text-gray-800 dark:text-gray-200">{selectedOrder.user_name || "—"}</dd>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">تماس</dt>
+                    <dd dir="ltr" className="font-medium tracking-wide text-gray-800 dark:text-gray-200">{selectedOrder.user_phone_number}</dd>
+                  </div>
+                </dl>
               </div>
 
-              <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                <h3 className="mb-3 font-semibold text-gray-700 dark:text-gray-300">
-                  آدرس ارسال
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-gray-500">عنوان:</span>{" "}
-                    {selectedOrder.shipping_address.title}
-                  </p>
-                  <p>
-                    <span className="text-gray-500">آدرس:</span>{" "}
-                    {selectedOrder.shipping_address.province}،{" "}
-                    {selectedOrder.shipping_address.city}،{" "}
-                    {selectedOrder.shipping_address.street}
-                  </p>
-                  <p>
-                    <span className="text-gray-500">کد پستی:</span>{" "}
-                    {selectedOrder.shipping_address.postcode}
-                  </p>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-800/60">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400">
+                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" /><circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </span>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">آدرس ارسال</h3>
                 </div>
+                <dl className="space-y-2 text-sm">
+                  {selectedOrder.shipping_address.title && (
+                    <div className="flex items-start gap-2">
+                      <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">عنوان</dt>
+                      <dd className="text-gray-700 dark:text-gray-300">{selectedOrder.shipping_address.title}</dd>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-2">
+                    <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">آدرس</dt>
+                    <dd className="text-gray-700 dark:text-gray-300">
+                      {[selectedOrder.shipping_address.province, selectedOrder.shipping_address.city, selectedOrder.shipping_address.street].filter(Boolean).join("، ")}
+                    </dd>
+                  </div>
+                  {selectedOrder.shipping_address.postcode && (
+                    <div className="flex items-center gap-2">
+                      <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">کد پستی</dt>
+                      <dd dir="ltr" className="font-mono text-xs text-gray-600 dark:text-gray-400">{selectedOrder.shipping_address.postcode}</dd>
+                    </div>
+                  )}
+                </dl>
               </div>
             </div>
 
+            {/* ─── Products ─── */}
             <div>
-              <h3 className="mb-3 font-semibold text-gray-700 dark:text-gray-300">
-                محصولات
-              </h3>
-              <div className="space-y-3">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400">
+                  <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" /><path d="M16 7V5a2 2 0 0 0-4 0v2M8 7V5a2 2 0 0 0-4 0v2" />
+                  </svg>
+                </span>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">محصولات</h3>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                  {selectedOrder.items.length} آیتم
+                </span>
+              </div>
+              <div className="space-y-2">
                 {selectedOrder.items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-lg border p-3 dark:border-gray-700"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">{item.ProductName}</p>
-                      <div className="mt-1 flex flex-wrap gap-2">
+                  <div key={index} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/40">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+                      <Image
+                        src={item.ProductThumbnailURL || noPic}
+                        alt={item.ProductName}
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <p className="truncate font-medium text-gray-800 dark:text-gray-200">{item.ProductName}</p>
+                      <div className="flex flex-wrap gap-1.5">
                         {(item.VariantAttributes ?? []).map((attr, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700"
-                          >
+                          <span key={i} className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                             {attr.key}:{" "}
-                            {attr.value.startsWith("#") ? (
-                              <span
-                                className="inline-block h-3 w-3 rounded-full border"
-                                style={{ backgroundColor: attr.value }}
-                              />
-                            ) : null}
+                            {attr.value.startsWith("#") && (
+                              <span className="inline-block h-2.5 w-2.5 rounded-full border border-gray-300" style={{ backgroundColor: attr.value }} />
+                            )}
                             {attr.label}
                           </span>
                         ))}
                       </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm text-gray-500">
-                        تعداد: {item.Quantity}
-                      </p>
-                      <p className="font-medium">
-                        {formatPrice(item.PriceAtTime)}
-                      </p>
+                    <div className="shrink-0 text-left">
+                      <p className="mb-0.5 text-right text-xs text-gray-400 dark:text-gray-500">× {item.Quantity}</p>
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">{formatPrice(item.PriceAtTime)}</p>
+                      {item.DiscountAmount ? (
+                        <p className="text-right text-xs text-green-600 dark:text-green-400">− {formatPrice(item.DiscountAmount)}</p>
+                      ) : null}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-              <h3 className="mb-3 font-semibold text-gray-700 dark:text-gray-300">
-                روش ارسال
-              </h3>
-              <p className="text-sm">
-                {selectedOrder.shipping?.name} -{" "}
-                {selectedOrder.shipping?.description}
-              </p>
-              <p className="text-sm text-gray-500">
-                هزینه ارسال: {formatPrice(selectedOrder.shipping?.cost || 0)}
-              </p>
-            </div>
+            {/* ─── Shipping ─── */}
+            {selectedOrder.shipping && (
+              <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700/50 dark:bg-gray-800/60">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3" /><rect x="9" y="11" width="14" height="10" rx="1" /><circle cx="12" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{selectedOrder.shipping.name || "—"}</p>
+                    {selectedOrder.shipping.description && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{selectedOrder.shipping.description}</p>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{formatPrice(selectedOrder.shipping.cost || 0)}</span>
+              </div>
+            )}
 
+            {/* ─── Payments ─── */}
             {selectedOrder.payments?.length > 0 && (
               <div>
-                <h3 className="mb-3 font-semibold text-gray-700 dark:text-gray-300">
-                  پرداخت‌ها
-                </h3>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
+                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" /><path d="M1 10h22" />
+                    </svg>
+                  </span>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">پرداخت‌ها</h3>
+                </div>
                 <div className="space-y-2">
                   {selectedOrder.payments.map((payment) => {
-                    const pConfig = paymentStatusConfig[payment.status] || {
-                      label: payment.status,
-                      color: "light" as BadgeColor,
-                    };
+                    const pConfig = paymentStatusConfig[payment.status] || { label: payment.status, color: "light" as BadgeColor };
                     return (
-                      <div
-                        key={payment.id}
-                        className="flex items-center justify-between rounded-lg border p-3 dark:border-gray-700"
-                      >
+                      <div key={payment.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/40">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <Badge color={pConfig.color}>{pConfig.label}</Badge>
-                            <span className="text-xs text-gray-500">
-                              {payment.gateway === "in_person"
-                                ? "خرید حضوری از فروشگاه"
-                                : payment.gateway}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {payment.gateway === "in_person" ? "خرید حضوری از فروشگاه" : payment.gateway}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-400">
-                            {formatDate(payment.created_at)}
-                          </span>
+                          <span className="text-xs text-gray-400">{formatDate(payment.created_at)}</span>
                           {payment.tracking_code && (
-                            <span className="text-xs text-gray-500">
-                              کد پیگیری: {payment.tracking_code}
-                            </span>
+                            <span className="text-xs text-gray-500">کد پیگیری: {payment.tracking_code}</span>
                           )}
                           {payment.masked_card_number && (
-                            <span dir="ltr" className="text-xs text-gray-500">
-                              {payment.masked_card_number}
-                            </span>
+                            <span dir="ltr" className="font-mono text-xs text-gray-500">{payment.masked_card_number}</span>
                           )}
                         </div>
-                        <span className="font-medium">
-                          {formatPrice(payment.amount)}
-                        </span>
+                        <span className="font-semibold text-gray-800 dark:text-gray-200">{formatPrice(payment.amount)}</span>
                       </div>
                     );
                   })}
@@ -805,40 +841,31 @@ const List: React.FC = () => {
               </div>
             )}
 
-            <div className="border-t pt-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">جمع کل:</span>
-                <span>{formatPrice(selectedOrder.subtotal_amount)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">هزینه ارسال:</span>
-                <span>{formatPrice(selectedOrder.shipping?.cost || 0)}</span>
-              </div>
-              {selectedOrder.final_amount < selectedOrder.subtotal_amount && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>تخفیف:</span>
-                  <span>
-                    {formatPrice(
-                      selectedOrder.subtotal_amount - selectedOrder.final_amount
-                    )}
-                    -
-                  </span>
+            {/* ─── Totals ─── */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700/50 dark:bg-gray-800/60">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                  <span>جمع کل</span>
+                  <span>{formatPrice(selectedOrder.subtotal_amount)}</span>
                 </div>
-              )}
-              <div className="mt-2 flex justify-between border-t pt-2 text-lg font-bold">
-                <span>مبلغ نهایی:</span>
-                <span className="text-green-600">
-                  {formatPrice(selectedOrder.final_amount)}
-                </span>
+                <div className="flex justify-between text-gray-500 dark:text-gray-400">
+                  <span>هزینه ارسال</span>
+                  <span>{formatPrice(selectedOrder.shipping?.cost || 0)}</span>
+                </div>
+                {selectedOrder.final_amount < selectedOrder.subtotal_amount && (
+                  <div className="flex justify-between text-green-600 dark:text-green-400">
+                    <span>تخفیف</span>
+                    <span>− {formatPrice(selectedOrder.subtotal_amount - selectedOrder.final_amount)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700">
+                <span className="text-base font-bold text-gray-800 dark:text-gray-100">مبلغ نهایی</span>
+                <span className="text-lg font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.final_amount)}</span>
               </div>
             </div>
 
             <EditHistory edits={selectedOrder.edits} />
-
-            <div className="text-xs text-gray-400">
-              <p>تاریخ ثبت: {formatDate(selectedOrder.created_at)}</p>
-              <p>آخرین بروزرسانی: {formatDate(selectedOrder.updated_at)}</p>
-            </div>
           </div>
         )}
       </Modal>

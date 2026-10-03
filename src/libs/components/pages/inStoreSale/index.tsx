@@ -457,13 +457,13 @@ const InStoreSale = () => {
         }
     };
 
-    const handleItemDiscount = async (variantId: string, amount: number) => {
+    const handleItemDiscount = async (item: CartItem, amount: number) => {
         const userId = user?._id ?? searchParams.get('userId');
         if (!userId) return;
         setLoading(true);
         try {
             await fetcher(ApiKeys.BACKOFFICE_ITEM_DISCOUNT, 'dashboard', 'POST', {
-                body: { user_id: userId, variant_id: variantId, amount }
+                body: { user_id: userId, variant_id: item.variant_id, amount }
             });
             await refreshCart();
         } finally {
@@ -485,74 +485,56 @@ const InStoreSale = () => {
         }
     };
 
-    const handleRegisterOrder = async () => {
-        const userId = user?._id ?? searchParams.get('userId');
-        if (!userId) return;
-        setLoading(true);
-        try {
-            const res = await fetcher(ApiKeys.BACKOFFICE_REGISTER_ORDER, 'dashboard', 'POST', {
-                body: { user_id: userId, discount_code: discountCode }
-            });
-            if (res?.success) {
-                setOrder(res.data.order);
-                goToStep('order');
-            }
-        } finally {
-            setLoading(false);
-        }
+    const handleRegisterOrder = () => {
+        goToStep('order');
     };
 
     const handleCompleteOrder = async () => {
-        if (!order) return;
+        if (!cart || !user) return;
+        const userId = user._id ?? searchParams.get('userId');
+        if (!userId) return;
         setLoading(true);
         try {
-            const res = await fetcher(ApiKeys.BACKOFFICE_COMPLETE_ORDER, 'dashboard', 'POST', {
-                body: { order_id: order.id, description: orderDescription, payment_method: paymentMethod }
+            const registerRes = await fetcher(ApiKeys.BACKOFFICE_REGISTER_ORDER, 'dashboard', 'POST', {
+                body: { user_id: userId, discount_code: discountCode }
             });
-            if (res?.success) {
+            if (!registerRes?.success) return;
+            const registeredOrder: OrderData = registerRes.data.order;
+            setOrder(registeredOrder);
+
+            const completeRes = await fetcher(ApiKeys.BACKOFFICE_COMPLETE_ORDER, 'dashboard', 'POST', {
+                body: { order_id: registeredOrder.id, description: orderDescription, payment_method: paymentMethod }
+            });
+            if (completeRes?.success) {
                 toast.success('سفارش با موفقیت ثبت شد');
                 setInvoiceData({
-                    orderId: order.id,
+                    orderId: registeredOrder.id,
                     createdAt: new Date().toISOString(),
                     type: 'in_person',
                     customer: { name: user?.name, phone: user?.phone_number ?? phone },
-                    items: (order.items?.length ? order.items : (cart?.items ?? [])).map((item) => {
-                        const unitPrice =
-                            'total_price_at_time' in item
-                                ? (item as OrderItem).total_price_at_time
-                                : (item as CartItem).price_at_time;
-                        const discount =
-                            'discount_amount' in item
-                                ? (item as OrderItem).discount_amount
-                                : (item as CartItem).manual_discount;
-                        const attrs = (item as CartItem).variant_attributes;
-
-                        return {
-                            name: item.product_name,
-                            variant: item.is_custom
-                                ? item.kind === 'service'
-                                    ? 'خدمات'
-                                    : 'ردیف دستی'
-                                : attrs?.map((a) => a.label).join('، '),
-                            quantity: item.quantity,
-                            unitPrice,
-                            discount: discount || undefined,
-                            totalPrice: unitPrice * item.quantity - (discount ?? 0)
-                        };
-                    }),
-                    subtotal: order.subtotal_amount,
+                    items: (cart.items ?? []).map((item) => ({
+                        name: item.product_name,
+                        variant: item.is_custom
+                            ? item.kind === 'service' ? 'خدمات' : 'ردیف دستی'
+                            : item.variant_attributes?.map((a) => a.label).join('، '),
+                        quantity: item.quantity,
+                        unitPrice: item.price_at_time,
+                        discount: item.manual_discount || undefined,
+                        totalPrice: item.price_at_time * item.quantity - (item.manual_discount ?? 0)
+                    })),
+                    subtotal: cart.subtotal,
                     discount:
-                        order.total_discount_amount ??
-                        (order.subtotal_amount > order.final_amount
-                            ? order.subtotal_amount - order.final_amount
+                        registeredOrder.total_discount_amount ??
+                        (cart.subtotal > (cart.payable_amount ?? cart.subtotal)
+                            ? cart.subtotal - (cart.payable_amount ?? cart.subtotal)
                             : undefined),
                     discountCode:
-                        order.applied_discounts
+                        registeredOrder.applied_discounts
                             ?.map((d) => d.discount_code)
                             .filter(Boolean)
                             .join('، ') || undefined,
-                    total: order.final_amount,
-                    advancePaid: order.final_amount,
+                    total: registeredOrder.final_amount,
+                    advancePaid: registeredOrder.final_amount,
                     paymentMethod: `حضوری - ${paymentMethodLabel(paymentMethod)}`,
                     note: orderDescription || undefined
                 });
@@ -612,7 +594,7 @@ const InStoreSale = () => {
         router.replace('?');
     };
 
-    if (initializing) {
+if (initializing) {
         return (
             <ContentWrapper title='ثبت خرید حضوری'>
                 <div className='flex items-center justify-center py-20 text-sm text-gray-400'>در حال بارگذاری...</div>
@@ -767,7 +749,7 @@ const InStoreSale = () => {
                                         const applyRowDiscount = () => {
                                             const amount = toAmount(discountValue);
                                             if (amount === (item.manual_discount ?? 0)) return;
-                                            handleItemDiscount(item.variant_id, amount);
+                                            handleItemDiscount(item, amount);
                                         };
 
                                         return (
@@ -910,9 +892,16 @@ const InStoreSale = () => {
                                                                     [item.variant_id]: e.target.value
                                                                 }))
                                                             }
-                                                            onBlur={applyRowDiscount}
                                                             onKeyDown={(e) => e.key === 'Enter' && applyRowDiscount()}
                                                         />
+                                                        <button
+                                                            type='button'
+                                                            onClick={applyRowDiscount}
+                                                            disabled={loading || toAmount(discountValue) === (item.manual_discount ?? 0)}
+                                                            className='flex h-11 items-center gap-1 rounded-lg bg-brand-500 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40'
+                                                        >
+                                                            اعمال
+                                                        </button>
                                                     </div>
 
                                                     <div className='flex items-center gap-1'>
@@ -1076,76 +1065,35 @@ const InStoreSale = () => {
                 </div>
             )}
 
-            {step === 'order' && order && (
+            {step === 'order' && cart && (
                 <div className='space-y-6'>
                     <div className='rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20'>
                         <p className='font-semibold text-green-700 dark:text-green-400'>سفارش آماده تأیید نهایی است</p>
-                        <p className='mt-1 text-sm text-green-600 dark:text-green-500'>شناسه: {order.id}</p>
+                        <p className='mt-1 text-sm text-green-600 dark:text-green-500'>پس از تأیید پرداخت، سفارش ثبت می‌شود</p>
                     </div>
 
                     <div className='space-y-2 rounded-lg border border-gray-200 p-4 dark:border-gray-700'>
                         <div className='flex justify-between text-sm'>
                             <span className='text-gray-500'>جمع کل:</span>
-                            <span>{formatPrice(order.subtotal_amount)}</span>
+                            <span>{formatPrice(cart.subtotal)}</span>
                         </div>
-                        {!!order.items_manual_discount && (
+                        {!!cart.items_manual_discount && (
                             <div className='flex justify-between text-sm text-green-600'>
                                 <span>تخفیف‌های سطری:</span>
-                                <span>−{formatPrice(order.items_manual_discount)}</span>
+                                <span>−{formatPrice(cart.items_manual_discount)}</span>
                             </div>
                         )}
-                        {!!order.manual_discount && (
+                        {!!cart.manual_discount && (
                             <div className='flex justify-between text-sm text-green-600'>
                                 <span>تخفیف کل فاکتور:</span>
-                                <span>−{formatPrice(order.manual_discount)}</span>
-                            </div>
-                        )}
-                        {(order.total_discount_amount ?? 0) -
-                            (order.items_manual_discount ?? 0) -
-                            (order.manual_discount ?? 0) >
-                            0 && (
-                            <div className='flex justify-between text-sm text-green-600'>
-                                <span>تخفیف کمپین / کد تخفیف:</span>
-                                <span>
-                                    −
-                                    {formatPrice(
-                                        (order.total_discount_amount ?? 0) -
-                                            (order.items_manual_discount ?? 0) -
-                                            (order.manual_discount ?? 0)
-                                    )}
-                                </span>
-                            </div>
-                        )}
-                        {!order.total_discount_amount && order.applied_discounts?.length > 0 && (
-                            <div className='flex justify-between text-sm text-green-600'>
-                                <span>تخفیف:</span>
-                                <span>−{formatPrice(order.subtotal_amount - order.final_amount)}</span>
+                                <span>−{formatPrice(cart.manual_discount)}</span>
                             </div>
                         )}
                         <div className='flex justify-between border-t pt-2 text-base font-bold dark:border-gray-700'>
                             <span>مبلغ نهایی:</span>
-                            <span className='text-green-600'>{formatPrice(order.final_amount)}</span>
+                            <span className='text-green-600'>{formatPrice(cart.payable_amount ?? cart.subtotal)}</span>
                         </div>
                     </div>
-
-                    {order.applied_discounts?.length > 0 && (
-                        <div className='space-y-2'>
-                            <h3 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                                تخفیف‌های اعمال‌شده
-                            </h3>
-                            {order.applied_discounts.map((d) => (
-                                <div
-                                    key={d.discount_id}
-                                    className='flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-800'
-                                >
-                                    <span className='text-gray-500'>
-                                        {d.discount_code ? `کد: ${d.discount_code}` : 'تخفیف خودکار'}
-                                    </span>
-                                    <span className='text-green-600'>−{formatPrice(d.amount)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
                     <div className='space-y-2'>
                         <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>روش پرداخت</label>
@@ -1182,7 +1130,31 @@ const InStoreSale = () => {
                         />
                     </div>
 
-                    <div className='flex justify-end'>
+                    <div className='flex items-center justify-between gap-3'>
+                        <div className='flex gap-2'>
+                            <button
+                                type='button'
+                                onClick={() => goToStep('cart')}
+                                disabled={loading}
+                                className='inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5'
+                            >
+                                <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                                    <path d='M11 17l-5-5 5-5' /><path d='M18 17l-5-5 5-5' />
+                                </svg>
+                                ویرایش سبد
+                            </button>
+                            <button
+                                type='button'
+                                onClick={handleChangeCustomer}
+                                disabled={loading}
+                                className='inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:hover:bg-red-500/10'
+                            >
+                                <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                                    <path d='M18 6 6 18' /><path d='M6 6l12 12' />
+                                </svg>
+                                کنسل کردن
+                            </button>
+                        </div>
                         <Button onClick={handleCompleteOrder} loading={loading} disabled={loading}>
                             تأیید و بستن سفارش
                         </Button>

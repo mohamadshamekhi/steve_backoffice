@@ -19,7 +19,7 @@ import Image, { StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { parseCookies } from 'nookies';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import useSWR from 'swr';
 import noPic from '../../../../../../public/images/placeholder/no-pic.png';
@@ -166,6 +166,18 @@ const ActionCell = ({
     );
 };
 
+const IS_PUBLISHED_OPTIONS = [
+    { value: '', label: 'همه (نمایش)' },
+    { value: 'true', label: 'منتشر شده' },
+    { value: 'false', label: 'مخفی' }
+];
+
+const IS_SECOND_HAND_OPTIONS = [
+    { value: '', label: 'همه (وضعیت کالا)' },
+    { value: 'false', label: 'نو' },
+    { value: 'true', label: 'دست دوم' }
+];
+
 const List = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -173,9 +185,56 @@ const List = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [kind, setKind] = useState<'' | ProductKind>('');
     const [salesChannel, setSalesChannel] = useState<'' | SalesChannel>('');
+    const [isPublished, setIsPublished] = useState<'' | 'true' | 'false'>('');
+    const [isSecondHand, setIsSecondHand] = useState<'' | 'true' | 'false'>('');
+    const [categoryId, setCategoryId] = useState<string>('');
+    const [brandId, setBrandId] = useState<string>('');
+    const [filterOpen, setFilterOpen] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const filterRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+                setFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+
+    const activeFilterCount = [
+        salesChannel !== '',
+        categoryId !== '',
+        brandId !== '',
+        isPublished !== '',
+        isSecondHand !== ''
+    ].filter(Boolean).length;
 
     const limit = 10;
+
+    const { data: categoriesData } = useSWR(ApiKeys.GET_ALL_CATEGORY, () =>
+        fetcher(ApiKeys.GET_ALL_CATEGORY, 'dashboard', 'GET', { params: { page_size: 500 } })
+    );
+    const { data: brandsData } = useSWR(ApiKeys.GET_ALL_BRAND, () =>
+        fetcher(ApiKeys.GET_ALL_BRAND, 'dashboard', 'GET', { params: { page_size: 500 } })
+    );
+
+    const categoryOptions = [
+        { value: '', label: 'همه‌ی دسته‌بندی‌ها' },
+        ...(categoriesData?.data?.categories ?? []).map((c: { id: number; name: string }) => ({
+            value: String(c.id),
+            label: c.name
+        }))
+    ];
+
+    const brandOptions = [
+        { value: '', label: 'همه‌ی برندها' },
+        ...(brandsData?.data?.brands ?? []).map((b: { id: number; name: string }) => ({
+            value: String(b.id),
+            label: b.name
+        }))
+    ];
 
     const handleExportExcel = async () => {
         try {
@@ -225,7 +284,7 @@ const List = () => {
     };
 
     const { isLoading, data, mutate } = useSWR(
-        [ApiKeys.GET_ALL_PRODUCT, page, limit, searchTerm, kind, salesChannel],
+        [ApiKeys.GET_ALL_PRODUCT, page, limit, searchTerm, kind, salesChannel, isPublished, isSecondHand, categoryId, brandId],
         () =>
             fetcher(ApiKeys.GET_ALL_PRODUCT, 'dashboard', 'GET', {
                 params: {
@@ -233,7 +292,11 @@ const List = () => {
                     page_size: limit,
                     ...(searchTerm && { name: searchTerm }),
                     ...(kind && { kind }),
-                    ...(salesChannel && { sales_channel: salesChannel })
+                    ...(salesChannel && { sales_channel: salesChannel }),
+                    ...(isPublished !== '' && { is_published: isPublished }),
+                    ...(isSecondHand !== '' && { is_second_hand: isSecondHand }),
+                    ...(categoryId && { category_id: categoryId }),
+                    ...(brandId && { brand_id: brandId })
                 }
             })
     );
@@ -434,7 +497,7 @@ const List = () => {
                 </div>
             }
         >
-            <div className='mb-4 flex flex-wrap items-center gap-3'>
+            <div className='mb-4 flex flex-wrap items-center gap-2'>
                 <Input
                     type='text'
                     placeholder='جستجو بر اساس نام محصول...'
@@ -443,10 +506,10 @@ const List = () => {
                         setSearchTerm(e.target.value);
                         setPage(1);
                     }}
-                    className='max-w-md'
+                    className='w-60'
                 />
 
-                <nav className='flex overflow-x-auto rounded-lg bg-gray-100 p-1 dark:bg-gray-900'>
+                <nav className='flex shrink-0 overflow-x-auto rounded-lg bg-gray-100 p-1 dark:bg-gray-900'>
                     {KIND_TABS.map((tab) => (
                         <button
                             key={tab.value || 'all'}
@@ -455,7 +518,7 @@ const List = () => {
                                 setKind(tab.value);
                                 setPage(1);
                             }}
-                            className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                            className={`inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                                 kind === tab.value
                                     ? 'shadow-theme-xs bg-white text-gray-900 dark:bg-white/[0.03] dark:text-white'
                                     : 'bg-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -466,16 +529,117 @@ const List = () => {
                     ))}
                 </nav>
 
-                <div className='w-full md:w-56'>
-                    <CSelect
-                        name='sales_channel'
-                        options={CHANNEL_OPTIONS}
-                        value={salesChannel}
-                        onChange={(value) => {
-                            setSalesChannel(value as '' | SalesChannel);
-                            setPage(1);
-                        }}
-                    />
+                <div ref={filterRef} className='relative'>
+                    <button
+                        type='button'
+                        onClick={() => setFilterOpen((v) => !v)}
+                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                            filterOpen || activeFilterCount > 0
+                                ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-400'
+                                : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
+                        }`}
+                    >
+                        <svg width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                            <polygon points='22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3' />
+                        </svg>
+                        فیلتر
+                        {activeFilterCount > 0 && (
+                            <span className='flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white'>
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </button>
+
+                    {filterOpen && (
+                        <div className='absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-900'>
+                            <div className='mb-3 flex items-center justify-between'>
+                                <span className='text-sm font-semibold text-gray-700 dark:text-gray-200'>فیلترها</span>
+                                {activeFilterCount > 0 && (
+                                    <button
+                                        type='button'
+                                        onClick={() => {
+                                            setSalesChannel('');
+                                            setCategoryId('');
+                                            setBrandId('');
+                                            setIsPublished('');
+                                            setIsSecondHand('');
+                                            setPage(1);
+                                        }}
+                                        className='text-xs text-red-400 hover:text-red-600 transition-colors'
+                                    >
+                                        پاک کردن همه
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className='flex flex-col gap-3'>
+                                <div>
+                                    <label className='mb-1 block text-xs text-gray-500 dark:text-gray-400'>کانال فروش</label>
+                                    <CSelect
+                                        name='sales_channel'
+                                        options={CHANNEL_OPTIONS}
+                                        value={salesChannel}
+                                        onChange={(value) => {
+                                            setSalesChannel(value as '' | SalesChannel);
+                                            setPage(1);
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className='mb-1 block text-xs text-gray-500 dark:text-gray-400'>دسته‌بندی</label>
+                                    <CSelect
+                                        name='category_id'
+                                        options={categoryOptions}
+                                        value={categoryId}
+                                        onChange={(value) => {
+                                            setCategoryId(value as string);
+                                            setPage(1);
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className='mb-1 block text-xs text-gray-500 dark:text-gray-400'>برند</label>
+                                    <CSelect
+                                        name='brand_id'
+                                        options={brandOptions}
+                                        value={brandId}
+                                        onChange={(value) => {
+                                            setBrandId(value as string);
+                                            setPage(1);
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className='mb-1 block text-xs text-gray-500 dark:text-gray-400'>وضعیت نمایش</label>
+                                    <CSelect
+                                        name='is_published'
+                                        options={IS_PUBLISHED_OPTIONS}
+                                        value={isPublished}
+                                        onChange={(value) => {
+                                            setIsPublished(value as '' | 'true' | 'false');
+                                            setPage(1);
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className='mb-1 block text-xs text-gray-500 dark:text-gray-400'>وضعیت کالا</label>
+                                    <CSelect
+                                        name='is_second_hand'
+                                        options={IS_SECOND_HAND_OPTIONS}
+                                        value={isSecondHand}
+                                        onChange={(value) => {
+                                            setIsSecondHand(value as '' | 'true' | 'false');
+                                            setPage(1);
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

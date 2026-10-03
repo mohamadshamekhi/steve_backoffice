@@ -14,6 +14,7 @@ export interface OrderItem {
     IsCustom?: boolean;
     Kind?: ProductKind;
     CostAtTime?: number;
+    ProductThumbnailURL?: string;
 }
 
 export interface ShippingAddress {

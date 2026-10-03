@@ -78,85 +78,85 @@ export const navItems: NavItem[] = [
   },
 
   /* ---------------------------- انبار و حسابداری ---------------------------- */
-  // {
-  //   section: "انبار و حسابداری",
-  //   icon: <WarehouseIcon />,
-  //   name: "انبار",
-  //   subItems: [
-  //     {
-  //       name: "موجودی انبار",
-  //       path: ROUTES.InventoryStock,
-  //       permission: "report:inventory",
-  //     },
-  //     {
-  //       name: "انبارگردانی",
-  //       path: ROUTES.InventoryStocktake,
-  //       permission: "report:inventory",
-  //     },
-  //     {
-  //       name: "دفتر حرکت کالا",
-  //       path: ROUTES.InventoryMovements,
-  //       permission: "inventory:view",
-  //     },
-  //     {
-  //       name: "تأمین‌کنندگان",
-  //       path: ROUTES.Suppliers,
-  //       permission: "supplier:list",
-  //     },
-  //     {
-  //       name: "فاکتورهای خرید",
-  //       path: ROUTES.Purchases,
-  //       permission: "purchase:list",
-  //     },
-  //     {
-  //       name: "ثبت فاکتور خرید",
-  //       path: ROUTES.CreatePurchase,
-  //       permission: "purchase:create",
-  //     },
-  //   ],
-  // },
-  // {
-  //   section: "انبار و حسابداری",
-  //   icon: <WalletIcon />,
-  //   name: "حسابداری",
-  //   subItems: [
-  //     {
-  //       name: "صندوق",
-  //       path: ROUTES.Cash,
-  //       permission: "cash:view",
-  //     },
-  //     {
-  //       name: "هزینه‌ها",
-  //       path: ROUTES.Expenses,
-  //       permission: "expense:list",
-  //     },
-  //     {
-  //       name: "مرجوعی‌ها",
-  //       path: ROUTES.SalesReturns,
-  //       permission: "sales_return:list",
-  //     },
-  //     {
-  //       name: "حساب تأمین‌کنندگان",
-  //       path: ROUTES.SupplierLedgerReport,
-  //       permission: "report:supplier_ledger",
-  //     },
-  //     {
-  //       name: "گزارش صندوق",
-  //       path: ROUTES.CashReport,
-  //       permission: "report:cash",
-  //     },
-  //     {
-  //       name: "گزارش سود ناخالص",
-  //       path: ROUTES.ProfitReport,
-  //       permission: "report:profit",
-  //     },
-  //     {
-  //       name: "صورت سود و زیان",
-  //       path: ROUTES.ProfitLossReport,
-  //       permission: "report:profit_loss",
-  //     },
-  //   ],
-  // },
+  {
+    section: "انبار و حسابداری",
+    icon: <WarehouseIcon />,
+    name: "انبار",
+    subItems: [
+      {
+        name: "موجودی انبار",
+        path: ROUTES.InventoryStock,
+        permission: "report:inventory",
+      },
+      {
+        name: "انبارگردانی",
+        path: ROUTES.InventoryStocktake,
+        permission: "report:inventory",
+      },
+      {
+        name: "دفتر حرکت کالا",
+        path: ROUTES.InventoryMovements,
+        permission: "inventory:view",
+      },
+      {
+        name: "تأمین‌کنندگان",
+        path: ROUTES.Suppliers,
+        permission: "supplier:list",
+      },
+      {
+        name: "فاکتورهای خرید",
+        path: ROUTES.Purchases,
+        permission: "purchase:list",
+      },
+      {
+        name: "ثبت فاکتور خرید",
+        path: ROUTES.CreatePurchase,
+        permission: "purchase:create",
+      },
+    ],
+  },
+  {
+    section: "انبار و حسابداری",
+    icon: <WalletIcon />,
+    name: "حسابداری",
+    subItems: [
+      {
+        name: "صندوق",
+        path: ROUTES.Cash,
+        permission: "cash:view",
+      },
+      {
+        name: "هزینه‌ها",
+        path: ROUTES.Expenses,
+        permission: "expense:list",
+      },
+      {
+        name: "مرجوعی‌ها",
+        path: ROUTES.SalesReturns,
+        permission: "sales_return:list",
+      },
+      {
+        name: "حساب تأمین‌کنندگان",
+        path: ROUTES.SupplierLedgerReport,
+        permission: "report:supplier_ledger",
+      },
+      {
+        name: "گزارش صندوق",
+        path: ROUTES.CashReport,
+        permission: "report:cash",
+      },
+      {
+        name: "گزارش سود ناخالص",
+        path: ROUTES.ProfitReport,
+        permission: "report:profit",
+      },
+      {
+        name: "صورت سود و زیان",
+        path: ROUTES.ProfitLossReport,
+        permission: "report:profit_loss",
+      },
+    ],
+  },
 
   /* --------------------------------- کاتالوگ -------------------------------- */
   {
