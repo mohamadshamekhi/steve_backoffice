@@ -754,6 +754,7 @@ const List: React.FC = () => {
                         fill
                         className="object-cover"
                         sizes="64px"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = noPic.src; }}
                       />
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">

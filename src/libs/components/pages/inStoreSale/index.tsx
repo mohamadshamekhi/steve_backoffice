@@ -338,8 +338,10 @@ const InStoreSale = () => {
         }
     };
 
+    const getCartUserId = () => cart?.user_id ?? user?._id ?? searchParams.get('userId');
+
     const handleAddItem = async (productId: string, variantId: string) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
@@ -356,7 +358,7 @@ const InStoreSale = () => {
     };
 
     const handleRemoveItem = async (productId: string, variantId: string) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
@@ -372,7 +374,7 @@ const InStoreSale = () => {
     };
 
     const handleDeleteItem = async (variantId: string) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
@@ -389,7 +391,7 @@ const InStoreSale = () => {
     };
 
     const refreshCart = async () => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = cart?.user_id ?? user?._id ?? searchParams.get('userId');
         if (!userId) return;
         const res = await fetcher(ApiKeys.BACKOFFICE_GET_ACTIVE_CART(userId), 'dashboard', 'GET');
         if (res?.success) {
@@ -400,7 +402,7 @@ const InStoreSale = () => {
     };
 
     const handleSaveCustomItem = async (draft: CustomItemDraft) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setSavingCustom(true);
         try {
@@ -412,23 +414,23 @@ const InStoreSale = () => {
                     unit_price: draft.unit_price,
                     quantity: draft.quantity,
                     kind: draft.kind,
-                    unit_cost: draft.unit_cost
+                    ...(draft.kind === 'physical' ? { unit_cost: draft.unit_cost } : {})
                 }
             });
             if (res?.success) {
                 toast.success(draft.variant_id ? 'ردیف به‌روزرسانی شد' : 'ردیف دستی اضافه شد');
                 setCustomModalOpen(false);
                 setEditingCustom(null);
+                await refreshCart();
             }
-            await refreshCart();
         } finally {
             setSavingCustom(false);
         }
     };
 
     const handleCustomQuantity = async (item: CartItem, delta: number) => {
-        const userId = user?._id ?? searchParams.get('userId');
-        if (!userId) return;
+        const userId = getCartUserId();
+        if (!userId || !item.variant_id) return;
         const nextQuantity = item.quantity + delta;
         if (nextQuantity < 1) {
             await handleDeleteItem(item.variant_id);
@@ -458,7 +460,7 @@ const InStoreSale = () => {
     };
 
     const handleItemDiscount = async (item: CartItem, amount: number) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
@@ -472,7 +474,7 @@ const InStoreSale = () => {
     };
 
     const handleCartDiscount = async (amount: number) => {
-        const userId = user?._id ?? searchParams.get('userId');
+        const userId = getCartUserId();
         if (!userId) return;
         setLoading(true);
         try {
@@ -496,9 +498,13 @@ const InStoreSale = () => {
         setLoading(true);
         try {
             const registerRes = await fetcher(ApiKeys.BACKOFFICE_REGISTER_ORDER, 'dashboard', 'POST', {
-                body: { user_id: userId, discount_code: discountCode }
+                body: { user_id: userId, ...(discountCode && { discount_code: discountCode }) }
             });
-            if (!registerRes?.success) return;
+            if (!registerRes?.success) {
+                await refreshCart();
+                goToStep('cart');
+                return;
+            }
             const registeredOrder: OrderData = registerRes.data.order;
             setOrder(registeredOrder);
 
