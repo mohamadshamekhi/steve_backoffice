@@ -998,7 +998,7 @@ const List: React.FC = () => {
                     key={index}
                     className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-700/50 dark:bg-gray-800/40"
                   >
-                    {console.log(selectedOrder)}
+
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                       <Image
                         src={item.ProductThumbnailURL || noPic}
