@@ -22,6 +22,7 @@ export interface ProductModel {
     category_id: string;
     description: string;
     is_second_hand: boolean;
+    requires_freight_shipping: boolean;
     kind: ProductKind;
     sales_channels: SalesChannel[];
     /** فقط برای خدمات؛ قیمت کالا روی واریانت است */
@@ -90,6 +91,7 @@ const ProductBaseInformation = ({ id }: { id: string }) => {
             category_id: data?.data?.product?.category?.id || '',
             description: data?.data?.product?.description || '',
             is_second_hand: data?.data?.product.is_second_hand,
+            requires_freight_shipping: data?.data?.product?.requires_freight_shipping || false,
             kind: (data?.data?.product?.kind as ProductKind) || 'physical',
             // Legacy products have no sales_channels; the backend treats that as both channels.
             sales_channels: (data?.data?.product?.sales_channels?.length
@@ -225,6 +227,24 @@ const ProductBaseInformation = ({ id }: { id: string }) => {
                         </Fieldset>
                     </>
                 )}
+
+                <Fieldset
+                    label='نیاز به ارسال باربری'
+                    name='requires_freight_shipping'
+                    touched={formik.touched}
+                    errors={formik.errors}
+                    className='col-span-2 w-full md:col-span-1'
+                >
+                    <Switch
+                        size='md'
+                        variant='primary'
+                        name='requires_freight_shipping'
+                        checked={formik.values.requires_freight_shipping}
+                        onChange={(checked) => {
+                            formik.setFieldValue('requires_freight_shipping', checked);
+                        }}
+                    />
+                </Fieldset>
 
                 {formik.values.kind === 'service' && (
                     <ServicePriceField

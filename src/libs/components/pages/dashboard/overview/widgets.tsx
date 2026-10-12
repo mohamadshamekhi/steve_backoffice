@@ -197,22 +197,43 @@ export const MiniStat = ({
     value,
     hint,
     href,
-    loading
+    loading,
+    urgent
 }: {
     label: string;
     value: React.ReactNode;
     hint?: React.ReactNode;
     href?: string;
     loading?: boolean;
+    /** وقتی true، کارت با حاشیه‌ی کهربایی و نقطه‌ی چشمک‌زن برای جلب توجه سریع نمایش داده می‌شود. */
+    urgent?: boolean;
 }) => {
     const body = (
-        <div className='flex h-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-white/[0.03] dark:hover:border-gray-700'>
+        <div
+            className={`flex h-full items-center justify-between gap-3 rounded-2xl border bg-white px-5 py-4 transition-colors dark:bg-white/[0.03] ${
+                urgent
+                    ? 'border-amber-300 hover:border-amber-400 dark:border-amber-500/40 dark:hover:border-amber-500/60'
+                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
+            }`}
+        >
             <div className='min-w-0'>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>{label}</p>
+                <p className='flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400'>
+                    {label}
+                    {urgent && (
+                        <span className='relative flex h-2 w-2 shrink-0' aria-hidden='true'>
+                            <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75' />
+                            <span className='relative inline-flex h-2 w-2 rounded-full bg-amber-500' />
+                        </span>
+                    )}
+                </p>
                 {loading ? (
                     <Skeleton className='mt-2 h-6 w-20' />
                 ) : (
-                    <p className='mt-1 text-lg font-bold text-gray-900 tabular-nums dark:text-white'>{value}</p>
+                    <p
+                        className={`mt-1 text-lg font-bold tabular-nums ${urgent ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white'}`}
+                    >
+                        {value}
+                    </p>
                 )}
             </div>
             {hint && <div className='flex shrink-0 flex-col items-end gap-1 text-xs text-gray-400'>{hint}</div>}

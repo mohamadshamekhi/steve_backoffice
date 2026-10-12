@@ -76,6 +76,24 @@ export const navItems: NavItem[] = [
       },
     ],
   },
+  {
+    section: "فروش",
+    icon: <DiscountIcon />,
+    name: "بازبینی قیمت",
+    permission: "price-review:view",
+    subItems: [
+      {
+        name: "لیست بازبینی",
+        path: ROUTES.PriceReview,
+        permission: "price-review:view",
+      },
+      {
+        name: "تنظیمات بازه",
+        path: ROUTES.PriceReviewSettings,
+        permission: "price-review:manage",
+      },
+    ],
+  },
 
   /* ---------------------------- انبار و حسابداری ---------------------------- */
   {

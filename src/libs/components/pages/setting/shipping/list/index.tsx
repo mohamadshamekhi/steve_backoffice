@@ -32,7 +32,11 @@ interface ActionCellProps {
     onChanged: () => void;
 }
 
+// این آیتم همیشه توسط بک‌اند ساخته می‌شود و API حذف/غیرفعال‌سازی ندارد.
+const FREIGHT_SHIPPING_NAME = 'ارسال باربری';
+
 const ActionCell = ({ data, onChanged }: ActionCellProps) => {
+    const isFreightShipping = data.name === FREIGHT_SHIPPING_NAME;
     const [isOpenMenu, setIsOpenMenu] = useState(false);
     const { openModal, isOpen, closeModal } = useModal();
     const [modalType, setModalType] = useState('');
@@ -76,17 +80,19 @@ const ActionCell = ({ data, onChanged }: ActionCellProps) => {
                     ویرایش
                 </Dropdown.Item>
 
-                <Dropdown.Item
-                    tag='button'
-                    onItemClick={() => {
-                        closeDropdown();
-                        openModal();
-                        setModalType('delete');
-                    }}
-                    className='text-red-500 hover:bg-red-100 hover:text-red-500'
-                >
-                    حذف
-                </Dropdown.Item>
+                {!isFreightShipping && (
+                    <Dropdown.Item
+                        tag='button'
+                        onItemClick={() => {
+                            closeDropdown();
+                            openModal();
+                            setModalType('delete');
+                        }}
+                        className='text-red-500 hover:bg-red-100 hover:text-red-500'
+                    >
+                        حذف
+                    </Dropdown.Item>
+                )}
             </Dropdown>
 
             <Switch>
@@ -133,7 +139,12 @@ const List: React.FC = () => {
             enableResizing: true,
             filterFn: 'includesString',
             enableSorting: true,
-            cell: ({ row }) => <div className='line-clamp-1 text-ellipsis'>{row?.original?.name}</div>
+            cell: ({ row }) => (
+                <div className='flex items-center gap-2'>
+                    <div className='line-clamp-1 text-ellipsis'>{row?.original?.name}</div>
+                    {row?.original?.name === FREIGHT_SHIPPING_NAME && <Badge color='warning'>ویژه</Badge>}
+                </div>
+            )
         },
         {
             accessorKey: 'description',

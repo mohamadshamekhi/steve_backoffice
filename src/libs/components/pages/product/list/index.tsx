@@ -33,6 +33,7 @@ interface ProductModel {
     name: string;
     en_title: string;
     is_second_hand?: boolean;
+    requires_freight_shipping?: boolean;
     category_id?: number;
     brand_id?: number;
     description?: string;
@@ -396,6 +397,11 @@ const List = () => {
                         >
                             {isService ? 'خدمات' : 'کالا'}
                         </Chip>
+                        {row.original.requires_freight_shipping && (
+                            <Chip className='bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:ring-orange-500/20'>
+                                🚚 باربری
+                            </Chip>
+                        )}
                         <div className='flex gap-1'>
                             {(['website', 'in_person'] as SalesChannel[])
                                 .filter((c) => channels.includes(c))

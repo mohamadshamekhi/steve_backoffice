@@ -117,6 +117,31 @@ const EditedTag = () => (
   </span>
 );
 
+const PostPayShippingTag = () => (
+  <span
+    title="هزینه ارسال موقع تحویل به‌صورت نقدی از مشتری گرفته می‌شود"
+    className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20"
+  >
+    <svg
+      aria-hidden
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="1" y="7" width="13" height="10" rx="1" />
+      <path d="M14 10h3.5l2.5 3v4h-6M1 17h0" />
+      <circle cx="5.5" cy="19" r="1.5" />
+      <circle cx="16.5" cy="19" r="1.5" />
+    </svg>
+    پس‌کرایه باربری
+  </span>
+);
+
 const svg = (d: React.ReactNode) => (
   <svg
     aria-hidden
@@ -605,6 +630,7 @@ const List: React.FC = () => {
           <div className="flex flex-col items-start gap-1">
             <Badge color={config.color}>{config.label}</Badge>
             {row.original.is_edited && <EditedTag />}
+            {row.original.is_post_pay_shipping && <PostPayShippingTag />}
           </div>
         );
       },
@@ -769,6 +795,7 @@ const List: React.FC = () => {
                   </h2>
                   <ChannelBadge inStore={isInStore(selectedOrder)} />
                   {selectedOrder.is_edited && <EditedTag />}
+                  {selectedOrder.is_post_pay_shipping && <PostPayShippingTag />}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                   <svg
@@ -1169,7 +1196,15 @@ const List: React.FC = () => {
                   <span>{formatPrice(selectedOrder.subtotal_amount)}</span>
                 </div>
                 <div className="flex justify-between text-gray-500 dark:text-gray-400">
-                  <span>هزینه ارسال</span>
+                  <span>
+                    هزینه ارسال
+                    {selectedOrder.is_post_pay_shipping && (
+                      <span className="mr-1 text-[11px] text-blue-600 dark:text-blue-400">
+                        {" "}
+                        (نقدی موقع تحویل)
+                      </span>
+                    )}
+                  </span>
                   <span>{formatPrice(selectedOrder.shipping?.cost || 0)}</span>
                 </div>
                 {selectedOrder.final_amount < selectedOrder.subtotal_amount && (

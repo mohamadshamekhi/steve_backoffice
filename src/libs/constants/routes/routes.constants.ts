@@ -30,6 +30,8 @@ const ROUTES = {
   PartnerShopPaymentCallback: "/dashboard/partner-shop/payment/callback",
   Referral: "/dashboard/referral",
   ReferralSettings: "/dashboard/referral/settings",
+  PriceReview: "/dashboard/price-review",
+  PriceReviewSettings: "/dashboard/price-review/settings",
   Sells: "/dashboard/sells",
   Shipping: "/dashboard/setting/shipping",
   CreateShipping: "/dashboard/setting/shipping/create",

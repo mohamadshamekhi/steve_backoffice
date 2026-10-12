@@ -89,6 +89,8 @@ export interface OrderProps {
     /** تخفیف کل فاکتور حضوری */
     manual_discount?: number;
     is_edited?: boolean;
+    /** سبد این سفارش آیتم باربری داشته؛ هزینه ارسال موقع تحویل نقدی گرفته می‌شود */
+    is_post_pay_shipping?: boolean;
     edits?: OrderEdit[];
     created_at: string;
     updated_at: string;

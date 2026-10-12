@@ -7,7 +7,10 @@ import Chart from 'libs/components/common/ApexChartClient';
 import { EXPENSE_CATEGORY_CONFIG, formatPercent, paymentMethodLabel } from 'libs/constants/accounting/accounting.constants';
 import ROUTES from 'libs/constants/routes/routes.constants';
 import { describeAttributes, formatNumber, formatToman, signedClass, toIsoDate } from 'libs/constants/warehouse/warehouse.constants';
+import { usePermission } from 'libs/hooks/usePermission';
 import { IDashboardOverview } from 'libs/models/dashboard.model';
+import { IPriceReviewListResponse } from 'libs/models/priceReview.model';
+import { PRICE_REVIEW_VIEW } from 'libs/components/pages/priceReview/constants';
 import { Badge } from 'libs/ui';
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
@@ -62,6 +65,13 @@ const xaxis = (categories: string[]): ApexCharts.ApexOptions['xaxis'] => ({
 });
 
 const OverviewDashboard = () => {
+    const canViewPriceReview = usePermission(PRICE_REVIEW_VIEW);
+    const { data: priceReviewData, isLoading: isPriceReviewLoading } = useSWR(
+        canViewPriceReview ? [ApiKeys.GET_PRICE_REVIEW_LIST, 1] : null,
+        ([url]: [string]) => fetcher(url, 'dashboard', 'GET', { params: { page_number: 1, page_size: 1 } })
+    );
+    const priceReviewTotal = (priceReviewData?.data as IPriceReviewListResponse | undefined)?.total ?? 0;
+
     const [period, setPeriod] = useState<Period>('30d');
     const periodMeta = PERIOD_OPTIONS.find((option) => option.value === period)!;
 
@@ -225,23 +235,13 @@ const OverviewDashboard = () => {
                 {show(overview?.repairs) && (
                     <MiniStat label='تعمیرات باز' loading={isLoading} href={ROUTES.Repairs} value={formatNumber(overview?.repairs?.open_count)} />
                 )}
-                {show(overview?.suppliers) && (
+                {canViewPriceReview && (
                     <MiniStat
-                        label='بدهی به تأمین‌کنندگان'
-                        loading={isLoading}
-                        href={ROUTES.SupplierLedgerReport}
-                        value={
-                            <span className={(overview?.suppliers?.total_debt ?? 0) > 0 ? 'text-error-600 dark:text-error-400' : ''}>
-                                {compactToman(overview?.suppliers?.total_debt)}
-                            </span>
-                        }
-                        hint={
-                            overview?.suppliers?.top_debtors?.[0] && (
-                                <span className='max-w-32 truncate' title={overview.suppliers.top_debtors[0].supplier_name}>
-                                    بیشترین: {overview.suppliers.top_debtors[0].supplier_name}
-                                </span>
-                            )
-                        }
+                        label='نیاز به بازبینی قیمت'
+                        loading={isPriceReviewLoading}
+                        href={ROUTES.PriceReview}
+                        value={formatNumber(priceReviewTotal)}
+                        urgent={priceReviewTotal > 0}
                     />
                 )}
             </div>

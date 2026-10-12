@@ -27,6 +27,7 @@ const Create = () => {
         category_id: string;
         description: string;
         is_second_hand: boolean;
+        requires_freight_shipping: boolean;
         kind: ProductKind;
         sales_channels: SalesChannel[];
         price: number;
@@ -38,6 +39,7 @@ const Create = () => {
             category_id: '',
             description: '',
             is_second_hand: false,
+            requires_freight_shipping: false,
             kind: 'physical',
             sales_channels: ['website', 'in_person'],
             price: 0
@@ -237,6 +239,24 @@ const Create = () => {
                             />
                         </Fieldset>
                     )}
+
+                    <Fieldset
+                        label='نیاز به ارسال باربری'
+                        name='requires_freight_shipping'
+                        touched={formik.touched}
+                        errors={formik.errors}
+                        className='col-span-2 w-full md:col-span-1'
+                    >
+                        <Switch
+                            checked={formik.values.requires_freight_shipping}
+                            onChange={(checked) => {
+                                formik.setFieldValue('requires_freight_shipping', checked);
+                            }}
+                            size='md'
+                            variant='primary'
+                            name='requires_freight_shipping'
+                        />
+                    </Fieldset>
 
                     <ProductKindChannels
                         kind={formik.values.kind}

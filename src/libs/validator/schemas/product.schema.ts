@@ -6,6 +6,7 @@ export const productValidationSchema = z
         name: z.string({ message: 'نام محصول الزامی است' }),
         en_title: z.string({ message: 'نام انگلیسی محصول الزامی است' }),
         is_second_hand: z.boolean({ message: 'اجباری' }),
+        requires_freight_shipping: z.boolean().optional(),
         brand_id: z.string().optional(),
         category_id: z.string().optional(),
         kind: z.enum(['physical', 'service']),

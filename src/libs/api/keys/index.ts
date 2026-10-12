@@ -16,6 +16,7 @@ import mediaKeys from "./media.keys";
 import orderKeys from "./order.keys";
 import partnerKeys from "./partner.keys";
 import partnerShopKeys from "./partnerShop.keys";
+import priceReviewKeys from "./priceReview.keys";
 import productKeys from "./product.keys";
 import purchaseKeys from "./purchase.keys";
 import referralKeys from "./referral.keys";
@@ -52,6 +53,7 @@ const ApiKeys = {
   ...inventoryKeys,
   ...accountingKeys,
   ...dashboardKeys,
+  ...priceReviewKeys,
 };
 
 export default ApiKeys;
