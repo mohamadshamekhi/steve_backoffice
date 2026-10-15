@@ -18,7 +18,7 @@ const STORE_INFO = {
   name: "موبایل استیو",
   subtitle: "مجموعه خدمات و فروشگاه",
   address: "ساری، خیابان جمهوری، جنب بانک مسکن",
-  phones: ["09379377797", "09116660036"],
+  phones: [ "09116660036"],
 };
 
 const formatPrice = (price?: number) => (price || 0).toLocaleString("fa-IR");
