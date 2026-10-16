@@ -39,4 +39,5 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
+            git pull --ff-only
             bash deploy/deploy.sh
