@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+# test: CI/CD pipeline check
 # اسکریپت دیپلوی روی سرور (اجرا توسط GitHub Actions از طریق SSH)
 # فرض: روی سرور از قبل clone شده و ریموت git ست شده
 
