@@ -16,6 +16,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Generate next-env.d.ts
+        run: |
+          cat > next-env.d.ts <<'EOF'
+          /// <reference types="next" />
+          /// <reference types="next/image-types/global" />
+          EOF
       - run: npm run check-types
       - run: npm run lint
 
