@@ -5,6 +5,7 @@ const keys = {
     GET_BACKOFFICE: (id: string) => `/back-office/${id}`,
     POST_BACKOFFICE: '/back-office/add-new-backoffice-user',
     PATCH_BACKOFFICE: (id: string) => `/back-office/update/${id}`,
+    ISSUE_SERVICE_TOKEN: (id: string) => `/back-office/${id}/issue-service-token`,
     GET_ALL_ROLES: '/acl/roles',
     GET_ALL_PERMISSIONS: '/acl/permissions'
 };

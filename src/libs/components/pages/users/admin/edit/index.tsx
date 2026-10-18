@@ -3,8 +3,10 @@ import { useFormik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
 import ContentWrapper from 'libs/components/common/contentWrapper/ContentWrapper';
+import { useRole } from 'libs/hooks/usePermission';
 import { Button, Input, Switch } from 'libs/ui';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
+import { Modal } from 'libs/ui/modal';
 import AsyncMultiSelectInput from 'libs/ui/select/AsyncMultiSelectInput';
 import { adminValidationSchema } from 'libs/validator/schemas/admin.schema';
 import { useRouter } from 'next/navigation';
@@ -16,6 +18,10 @@ import { toFormikValidationSchema } from 'zod-formik-adapter';
 const Edit = ({ id }: { id: string }) => {
     const router = useRouter();
     const [loading, setLoading] = useState<boolean>(false);
+    const isSuperAdmin = useRole('super_admin');
+    const [tokenModalOpen, setTokenModalOpen] = useState<boolean>(false);
+    const [issuedToken, setIssuedToken] = useState<string>('');
+    const [issuingToken, setIssuingToken] = useState<boolean>(false);
 
     const { data, isLoading } = useSWR(ApiKeys.GET_BACKOFFICE(id), (url: string) => fetcher(url, 'dashboard', 'GET'));
 
@@ -79,6 +85,41 @@ const Edit = ({ id }: { id: string }) => {
         }
     });
 
+    const handleIssueServiceToken = useCallback(async () => {
+        setIssuingToken(true);
+        try {
+            const { data, status } = await fetcher(ApiKeys.ISSUE_SERVICE_TOKEN(id), 'dashboard', 'POST');
+            if (status === 403) {
+                toast.error('شما دسترسی صدور توکن سرویسی را ندارید');
+                return;
+            }
+            if (data?.token) {
+                setIssuedToken(data.token);
+                setTokenModalOpen(true);
+            }
+        } catch (error) {
+            console.log(error);
+            toast.error('خطا در صدور توکن سرویسی');
+        } finally {
+            setIssuingToken(false);
+        }
+    }, [id]);
+
+    const handleCopyToken = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(issuedToken);
+            toast.success('توکن کپی شد');
+        } catch (error) {
+            console.log(error);
+            toast.error('کپی توکن ناموفق بود');
+        }
+    }, [issuedToken]);
+
+    const handleCloseTokenModal = useCallback(() => {
+        setTokenModalOpen(false);
+        setIssuedToken('');
+    }, []);
+
     if (isLoading) {
         return (
             <ContentWrapper title='ویرایش ادمین'>
@@ -90,7 +131,23 @@ const Edit = ({ id }: { id: string }) => {
     }
 
     return (
-        <ContentWrapper title='ویرایش ادمین'>
+        <ContentWrapper
+            title='ویرایش ادمین'
+            extra={
+                isSuperAdmin ? (
+                    <Button
+                        variant='outline'
+                        size='sm'
+                        type='button'
+                        loading={issuingToken}
+                        disabled={issuingToken}
+                        onClick={handleIssueServiceToken}
+                    >
+                        صدور توکن سرویسی
+                    </Button>
+                ) : undefined
+            }
+        >
             <form onSubmit={formik.handleSubmit}>
                 <div className='block grid-cols-1 gap-y-2 pt-5 md:mt-5 md:grid md:grid-cols-2 md:gap-2'>
                     <Fieldset
@@ -181,6 +238,28 @@ const Edit = ({ id }: { id: string }) => {
                     </Button>
                 </div>
             </form>
+
+            <Modal isOpen={tokenModalOpen} onClose={handleCloseTokenModal} containerClassName='max-w-[600px]'>
+                <h3 className='mb-2 text-lg font-medium text-gray-800 dark:text-white/90'>توکن سرویسی صادر شد</h3>
+                <p className='mb-4 text-sm text-gray-500 dark:text-gray-400'>
+                    این توکن فقط همین یک‌بار نمایش داده می‌شود و در دیتابیس ذخیره نمی‌شود، آن را همین حالا کپی و برای تیم
+                    خارجی (ایجنت سئو) ارسال کنید. اعتبار این توکن ۱ سال است.
+                </p>
+                <div
+                    dir='ltr'
+                    className='mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs break-all text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-300'
+                >
+                    {issuedToken}
+                </div>
+                <div className='flex items-center justify-end gap-2'>
+                    <Button variant='outline' size='sm' type='button' onClick={handleCloseTokenModal}>
+                        بستن
+                    </Button>
+                    <Button size='sm' type='button' onClick={handleCopyToken}>
+                        کپی توکن
+                    </Button>
+                </div>
+            </Modal>
         </ContentWrapper>
     );
 };

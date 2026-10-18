@@ -222,7 +222,7 @@ const ProductBaseInformation = ({ id }: { id: string }) => {
                                 onChange={(checked) => {
                                     formik.setFieldValue('is_second_hand', checked);
                                 }}
-                                disabled={formik.values.is_second_hand}
+                                // disabled={formik.values.is_second_hand}
                             />
                         </Fieldset>
                     </>
