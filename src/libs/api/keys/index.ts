@@ -20,6 +20,7 @@ import priceReviewKeys from "./priceReview.keys";
 import productKeys from "./product.keys";
 import purchaseKeys from "./purchase.keys";
 import referralKeys from "./referral.keys";
+import birthdayKeys from "./birthday.keys";
 import repairKeys from "./repairs.keys";
 import sellsKeys from "./sells.keys";
 import shippingKeys from "./shipping.keys";
@@ -45,6 +46,7 @@ const ApiKeys = {
   ...partnerKeys,
   ...partnerShopKeys,
   ...referralKeys,
+  ...birthdayKeys,
   ...repairKeys,
   ...sellsKeys,
   ...shippingKeys,

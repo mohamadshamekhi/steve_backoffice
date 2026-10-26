@@ -79,6 +79,14 @@ export const navItems: NavItem[] = [
   {
     section: "فروش",
     icon: <DiscountIcon />,
+    name: "کد تخفیف تولد",
+    path: ROUTES.Birthday,
+    permission: "birthday:view",
+    roles: ["super_admin", "marketing_manager"],
+  },
+  {
+    section: "فروش",
+    icon: <DiscountIcon />,
     name: "بازبینی قیمت",
     permission: "price-review:view",
     subItems: [
