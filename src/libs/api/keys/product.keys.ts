@@ -19,6 +19,8 @@ const keys = {
 
     PATCH_PRODUCT_SET_PRIMARY: `/product/set-primary`,
 
+    PATCH_PRODUCT_SET_GALLERY_ALT: '/product/set-gallery-alt',
+
     PATCH_PRODUCT_ADD_ATTRIBUTE: (id: string) => `/product/${id}/update-attrs`,
 
     PATCH_PRODUCT_PUBLISHED: (id: string) => `/product/publish/${id}`,
