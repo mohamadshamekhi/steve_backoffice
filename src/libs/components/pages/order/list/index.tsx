@@ -30,6 +30,7 @@ import OrderFilterDrawer, {
   EMPTY_ORDER_FILTERS,
   OrderFilters,
 } from "./OrderFilterDrawer";
+import ShipOrderModal from "./ShipOrderModal";
 
 const statusConfig: Record<string, { label: string; color: BadgeColor }> = {
   pending_payment: { label: "در انتظار پرداخت", color: "warning" },
@@ -462,7 +463,18 @@ const List: React.FC = () => {
       fetcher(url, "dashboard", "GET", { params: JSON.parse(params) })
   );
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  // تغییر به «ارسال شده» بدون کد رهگیری ممکن نیست؛ اول مودال کد رهگیری باز می‌شود
+  const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
+
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: string,
+    trackingCode?: string
+  ) => {
+    if (newStatus === "shipped" && !trackingCode) {
+      setShippingOrderId(orderId);
+      return;
+    }
     setUpdatingStatus(true);
     try {
       const res = await fetcher(
@@ -470,14 +482,26 @@ const List: React.FC = () => {
         "dashboard",
         "PATCH",
         {
-          body: { status: newStatus },
+          body: {
+            status: newStatus,
+            ...(trackingCode && { tracking_code: trackingCode }),
+          },
         }
       );
       if (res?.success) {
-        toast.success("وضعیت سفارش بروزرسانی شد");
+        toast.success(
+          trackingCode
+            ? "سفارش ارسال شد و کد رهگیری برای خریدار پیامک شد"
+            : "وضعیت سفارش بروزرسانی شد"
+        );
         mutate();
+        setShippingOrderId(null);
         if (selectedOrder) {
-          setSelectedOrder({ ...selectedOrder, status: newStatus });
+          setSelectedOrder({
+            ...selectedOrder,
+            status: newStatus,
+            ...(trackingCode && { tracking_code: trackingCode }),
+          });
         }
       }
     } finally {
@@ -926,6 +950,47 @@ const List: React.FC = () => {
                       {selectedOrder.user_phone_number}
                     </dd>
                   </div>
+                  {selectedOrder.tracking_code && (
+                    <div className="flex items-center gap-2">
+                      <dt className="w-20 shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                        کد رهگیری
+                      </dt>
+                      <dd className="flex min-w-0 items-center gap-1.5">
+                        <span
+                          dir="ltr"
+                          className="truncate font-mono font-medium tracking-wide text-gray-800 dark:text-gray-200"
+                        >
+                          {selectedOrder.tracking_code}
+                        </span>
+                        <button
+                          type="button"
+                          title="کپی کد رهگیری"
+                          onClick={() => {
+                            navigator.clipboard
+                              ?.writeText(selectedOrder.tracking_code ?? "")
+                              .then(() => toast.success("کد رهگیری کپی شد"))
+                              .catch(() => {});
+                          }}
+                          className="shrink-0 cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                        >
+                          <svg
+                            aria-hidden
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        </button>
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </div>
 
@@ -1234,6 +1299,22 @@ const List: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      <ShipOrderModal
+        isOpen={!!shippingOrderId}
+        orderId={shippingOrderId ?? undefined}
+        initialCode={
+          shippingOrderId && selectedOrder?.id === shippingOrderId
+            ? selectedOrder.tracking_code
+            : undefined
+        }
+        loading={updatingStatus}
+        onClose={() => setShippingOrderId(null)}
+        onSubmit={(code) =>
+          shippingOrderId &&
+          handleStatusChange(shippingOrderId, "shipped", code)
+        }
+      />
 
       <EditOrderModal
         order={editingOrder}
