@@ -1,7 +1,7 @@
 type FieldsetProps = {
     children: React.ReactNode;
     name: string;
-    hint?: string;
+    hint?: React.ReactNode;
     label?: string;
     // errors?: { [key: string]: string };
     // touched?: { [key: string]: boolean };

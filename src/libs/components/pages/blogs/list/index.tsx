@@ -103,6 +103,33 @@ const List: React.FC = () => {
         fetcher(url, 'dashboard', 'GET')
     );
 
+    // یک‌بار برای مقاله‌های قدیمی: عکس‌های base64 داخل متن را آپلود و با لینک جایگزین می‌کند.
+    // مقاله‌های جدید هنگام ذخیره خودکار همین کار را انجام می‌دهند.
+    const [externalizing, setExternalizing] = useState(false);
+    const externalizeInlineImages = async () => {
+        setExternalizing(true);
+        try {
+            const res = await fetcher(ApiKeys.POST_ARTICLE_EXTERNALIZE_IMAGES, 'dashboard', 'POST');
+            if (!res?.success) return;
+            const fixed: { images: number }[] = res.data?.fixed ?? [];
+            const failed: { slug: string }[] = res.data?.failed ?? [];
+            const images = fixed.reduce((sum, a) => sum + a.images, 0);
+            if (fixed.length === 0 && failed.length === 0) {
+                toast.info('مقاله‌ای با عکس base64 پیدا نشد');
+            } else {
+                toast.success(
+                    `${images.toLocaleString('fa-IR')} عکس از ${fixed.length.toLocaleString('fa-IR')} مقاله منتقل شد`
+                );
+            }
+            if (failed.length > 0) {
+                toast.error(`انتقال این مقاله‌ها ناموفق بود: ${failed.map((a) => a.slug).join('، ')}`);
+            }
+            mutate();
+        } finally {
+            setExternalizing(false);
+        }
+    };
+
     const toggleVisibilityHandler = async (id: string, currentState: boolean) => {
         try {
             await fetcher(ApiKeys.PATCH_ARTICLE(id), 'dashboard', 'PATCH', { body: { is_published: !currentState } });
@@ -184,12 +211,23 @@ const List: React.FC = () => {
         <ContentWrapper
             title='بلاگ ها'
             extra={
-                <Link
-                    className='bg-brand-500 hover:bg-brand-600 rounded-md px-4 py-2 text-sm font-semibold text-white'
-                    href={ROUTES.CreateBlog}
-                >
-                    درج بلاگ +
-                </Link>
+                <div className='flex flex-wrap items-center gap-2'>
+                    <Button
+                        size='sm'
+                        variant='outline'
+                        loading={externalizing}
+                        disabled={externalizing}
+                        onClick={externalizeInlineImages}
+                    >
+                        انتقال عکس‌های داخل متن به فضای ابری
+                    </Button>
+                    <Link
+                        className='bg-brand-500 hover:bg-brand-600 rounded-md px-4 py-2 text-sm font-semibold text-white'
+                        href={ROUTES.CreateBlog}
+                    >
+                        درج بلاگ +
+                    </Link>
+                </div>
             }
         >
             <div className='relative'>

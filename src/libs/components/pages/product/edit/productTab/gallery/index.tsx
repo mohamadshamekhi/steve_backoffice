@@ -3,7 +3,7 @@ import { useFormik } from 'formik';
 import { fetcher } from 'libs/api';
 import ApiKeys from 'libs/api/keys';
 import { TrashIcon } from 'libs/components/icons';
-import { Button, Switch } from 'libs/ui';
+import { Button, Input, Switch } from 'libs/ui';
 import DropzoneComponent from 'libs/ui/form/dropzone';
 import Fieldset from 'libs/ui/form/FieldSet/Fieldset';
 import LoadingState from 'libs/ui/loadingState';
@@ -23,6 +23,50 @@ type Image = {
     alt?: string;
     is_primary?: boolean;
 };
+/** متن alt یک تصویر گالری؛ برای سئو و دسترس‌پذیری. خالی = نام محصول در سایت استفاده می‌شود */
+const GalleryAltField = ({
+    productId,
+    media,
+    onSaved
+}: {
+    productId: string;
+    media: Image;
+    onSaved: () => void;
+}) => {
+    const [alt, setAlt] = useState(media.alt ?? '');
+    const [saving, setSaving] = useState(false);
+    const dirty = alt.trim() !== (media.alt ?? '');
+
+    const save = async () => {
+        setSaving(true);
+        try {
+            const res = await fetcher(ApiKeys.PATCH_PRODUCT_SET_GALLERY_ALT, 'dashboard', 'PATCH', {
+                body: { product_id: productId, media_id: media.media_id, alt: alt.trim() }
+            });
+            if (res?.success) {
+                toast.success('متن جایگزین تصویر ذخیره شد');
+                onSaved();
+            }
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className='flex min-w-0 flex-1 items-center gap-2'>
+            <Input
+                value={alt}
+                onChange={(e) => setAlt(e.target.value)}
+                placeholder='متن جایگزین (alt) — مثلاً «قاب مگ‌سیف آیفون ۱۷ رنگ مشکی»'
+                className='max-w-full!'
+            />
+            <Button size='sm' variant='outline' disabled={!dirty || saving} loading={saving} onClick={save}>
+                ذخیره
+            </Button>
+        </div>
+    );
+};
+
 const ProductGallery = ({ id }: { id: string }) => {
     const { isLoading, data, mutate } = useSWR(ApiKeys.GET_PRODUCT(id), (url: string) =>
         fetcher(url, 'dashboard', 'GET')
@@ -177,7 +221,7 @@ const ProductGallery = ({ id }: { id: string }) => {
                     <div key={index} className='mt-4 mb-4 flex items-center gap-4'>
                         <div className='relative flex-1 rounded-md border p-2'>
                             <div className='flex items-center justify-between'>
-                                <div className='flex flex-wrap items-center gap-2'>
+                                <div className='flex min-w-0 flex-1 flex-wrap items-center gap-3'>
                                     {media.url.endsWith('.mp4') ? (
                                         <video width={100} height={100} controls className='rounded'>
                                             <source src={media.url} type='video/mp4' />
@@ -187,10 +231,18 @@ const ProductGallery = ({ id }: { id: string }) => {
                                         <Image
                                             key={index}
                                             src={media.url}
-                                            alt={media.media_id}
+                                            alt={media.alt || media.media_id}
                                             width={100}
                                             height={100}
                                             className='rounded'
+                                        />
+                                    )}
+                                    {!media.url.endsWith('.mp4') && (
+                                        <GalleryAltField
+                                            key={`${media.media_id}-${media.alt ?? ''}`}
+                                            productId={id}
+                                            media={media}
+                                            onSaved={() => mutate()}
                                         />
                                     )}
                                 </div>

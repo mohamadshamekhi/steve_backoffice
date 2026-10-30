@@ -2,6 +2,10 @@
 import { useEffect, useRef } from 'react';
 import ModalProps from './modal.type';
 
+// مودال‌های باز به ترتیب باز شدن؛ Esc فقط بالاترین را می‌بندد و قفل اسکرول body
+// تا بسته شدن آخرین مودال باقی می‌ماند (برای مودال روی مودال)
+const openModals: object[] = [];
+
 export const Modal: React.FC<ModalProps> = ({
     isOpen,
     onClose,
@@ -12,10 +16,11 @@ export const Modal: React.FC<ModalProps> = ({
     isFullscreen = false
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
+    const tokenRef = useRef<object>({});
 
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
+            if (event.key === 'Escape' && openModals[openModals.length - 1] === tokenRef.current) {
                 onClose();
             }
         };
@@ -30,14 +35,18 @@ export const Modal: React.FC<ModalProps> = ({
     }, [isOpen, onClose]);
 
     useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
+        if (!isOpen) return;
+
+        const token = tokenRef.current;
+        openModals.push(token);
+        document.body.style.overflow = 'hidden';
 
         return () => {
-            document.body.style.overflow = 'unset';
+            const index = openModals.indexOf(token);
+            if (index !== -1) openModals.splice(index, 1);
+            if (openModals.length === 0) {
+                document.body.style.overflow = 'unset';
+            }
         };
     }, [isOpen]);
 

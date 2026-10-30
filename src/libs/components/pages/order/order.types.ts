@@ -92,6 +92,9 @@ export interface OrderProps {
     /** سبد این سفارش آیتم باربری داشته؛ هزینه ارسال موقع تحویل نقدی گرفته می‌شود */
     is_post_pay_shipping?: boolean;
     edits?: OrderEdit[];
+    /** کد رهگیری مرسوله؛ موقع تغییر وضعیت به «ارسال شده» ثبت می‌شود */
+    tracking_code?: string;
+    shipped_at?: string;
     created_at: string;
     updated_at: string;
 }
