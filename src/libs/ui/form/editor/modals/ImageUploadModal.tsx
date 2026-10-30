@@ -1,9 +1,33 @@
 'use client';
 
+import axios from 'axios';
 import { ImageIcon } from 'libs/components/icons';
 import { Button, Input } from 'libs/ui';
 import { Modal } from 'libs/ui/modal';
-import { useCallback, useRef, useState } from 'react';
+import { parseCookies } from 'nookies';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
+
+/**
+ * فایل را روی استوریج آپلود می‌کند و آدرس عمومی‌اش را برمی‌گرداند.
+ * تصویر نباید به‌صورت base64 داخل متن ذخیره شود: حجم بدنه‌ی مقاله تا ~۱ مگابایت می‌رسید
+ * و گوگل و CDN هم تصویر را جدا نمی‌دیدند.
+ */
+const uploadEditorImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('domain', 'article');
+    formData.append('is_public', 'true');
+    formData.append('convert_to_webp', 'true');
+    const accessToken = parseCookies()['steve-session'];
+
+    const response = await axios.post(`${process.env['NEXT_PUBLIC_API_URL']}/media/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${accessToken}` }
+    });
+    const url: string | undefined = response.data?.data?.url;
+    if (!url) throw new Error('upload response has no url');
+    return url;
+};
 
 interface ImageUploadModalProps {
     isOpen: boolean;
@@ -18,13 +42,22 @@ const ImageUploadModal = ({ isOpen, onClose, onInsert }: ImageUploadModalProps) 
     const [url, setUrl] = useState('');
     const [alt, setAlt] = useState('');
     const [preview, setPreview] = useState<string | null>(null);
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // پیش‌نمایش با object URL (نه base64) و آزادسازی آن بعد از استفاده
+    useEffect(() => {
+        if (!preview) return;
+        return () => URL.revokeObjectURL(preview);
+    }, [preview]);
 
     const reset = useCallback(() => {
         setTab('upload');
         setUrl('');
         setAlt('');
         setPreview(null);
+        setFile(null);
     }, []);
 
     const handleClose = useCallback(() => {
@@ -33,25 +66,32 @@ const ImageUploadModal = ({ isOpen, onClose, onInsert }: ImageUploadModalProps) 
     }, [onClose, reset]);
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => setPreview(reader.result as string);
-        reader.readAsDataURL(file);
+        const selected = e.target.files?.[0];
+        if (!selected) return;
+        setFile(selected);
+        setPreview(URL.createObjectURL(selected));
         e.target.value = '';
     }, []);
 
-    const handleInsert = useCallback(() => {
-        if (tab === 'upload' && preview) {
-            onInsert(preview, alt);
-            handleClose();
+    const handleInsert = useCallback(async () => {
+        if (tab === 'upload' && file) {
+            setUploading(true);
+            try {
+                const uploadedUrl = await uploadEditorImage(file);
+                onInsert(uploadedUrl, alt);
+                handleClose();
+            } catch {
+                toast.error('آپلود تصویر ناموفق بود؛ دوباره تلاش کنید');
+            } finally {
+                setUploading(false);
+            }
         } else if (tab === 'url' && url.trim()) {
             onInsert(url.trim(), alt);
             handleClose();
         }
-    }, [tab, preview, url, alt, onInsert, handleClose]);
+    }, [tab, file, url, alt, onInsert, handleClose]);
 
-    const canInsert = (tab === 'upload' && !!preview) || (tab === 'url' && !!url.trim());
+    const canInsert = !uploading && ((tab === 'upload' && !!file) || (tab === 'url' && !!url.trim()));
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose}>
@@ -133,8 +173,8 @@ const ImageUploadModal = ({ isOpen, onClose, onInsert }: ImageUploadModalProps) 
                 <Button type='button' variant='outline' size='sm' onClick={handleClose}>
                     انصراف
                 </Button>
-                <Button type='button' size='sm' onClick={handleInsert} disabled={!canInsert}>
-                    درج تصویر
+                <Button type='button' size='sm' onClick={handleInsert} disabled={!canInsert} loading={uploading}>
+                    {tab === 'upload' ? 'آپلود و درج تصویر' : 'درج تصویر'}
                 </Button>
             </div>
         </Modal>
