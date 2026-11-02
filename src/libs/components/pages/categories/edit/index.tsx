@@ -20,6 +20,8 @@ import { toFormikValidationSchema } from 'zod-formik-adapter';
 interface CategoryEditFormValues {
     name: string;
     description: string;
+    seo_title: string;
+    seo_description: string;
     media_id: string | null;
     attribute_set_id: string;
     parent_id: string;
@@ -75,6 +77,8 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
         initialValues: {
             name: category?.name ?? '',
             description: category?.description ?? '',
+            seo_title: category?.seo_title ?? '',
+            seo_description: category?.seo_description ?? '',
             media_id: null as string | null,
             attribute_set_id: category?.attribute_set_id ?? category?.attribute_set?.[0]?.id ?? '',
             parent_id: category?.parent_id ?? ''
@@ -88,7 +92,9 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
 
                 const payload: Record<string, any> = {
                     name: values.name,
-                    description: values.description
+                    description: values.description,
+                    seo_title: values.seo_title,
+                    seo_description: values.seo_description
                 };
 
                 if (values.media_id) {
@@ -203,6 +209,29 @@ const Edit = ({ id, onClose, onUpdated, isOpen }: EditProps) => {
                                 error={Boolean(formik.touched.description && formik.errors.description)}
                                 onChange={formik.handleChange}
                                 value={formik.values.description}
+                            />
+                        </Fieldset>
+
+                        <Fieldset label='عنوان سئو' name='seo_title' touched={formik.touched} errors={formik.errors}>
+                            <Input
+                                name='seo_title'
+                                onChange={formik.handleChange}
+                                value={formik.values.seo_title}
+                                placeholder='خالی = عنوان خودکار'
+                            />
+                        </Fieldset>
+
+                        <Fieldset
+                            label='توضیح سئو'
+                            name='seo_description'
+                            touched={formik.touched}
+                            errors={formik.errors}
+                            className='col-span-2 w-full'
+                        >
+                            <TextArea
+                                name='seo_description'
+                                onChange={formik.handleChange}
+                                value={formik.values.seo_description}
                             />
                         </Fieldset>
 
